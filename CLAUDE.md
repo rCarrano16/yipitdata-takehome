@@ -29,6 +29,16 @@ AI writes simple, conventional, readable code. No clever abstractions, no premat
 - Every work session opens with the `start-session` skill and closes with the `end-session` skill.
 - Use built-in tools where they fit: Plan mode, the Explore agent, `/security-review`.
 
+## End-of-phase report
+
+When a phase of the build PLAN is implemented, do the following in order, and only then run `end-session`:
+
+1. Run the phase's `Verify` step and show the real output. Do not claim a phase passed, prove it.
+2. Give a short educational summary of what was built. Descriptive and easy to understand. Explain every technical term and the basics of each stack or tool involved, so it can be followed without prior knowledge of that tool. Cover what was done and why. Keep it concise: define the terms, but do not over-extend.
+3. Give a test checklist for the user: concrete, ordered steps to verify the phase by hand, each with the exact command and its expected result.
+
+This report is delivered in the chat for the user to read and act on within the session. `end-session` is the final handoff and runs only after this report, with nothing left to do after it.
+
 ## Development log
 
 `DEVLOG.md` is a chronological, educational record of how the project is built. It exists so the work can be reviewed afterward, the workflow improved, and the study needs made explicit. It is internal and gitignored.
