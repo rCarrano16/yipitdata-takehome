@@ -1,0 +1,20 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kpi-mcp"
+version = "0.1.0"
+description = "FastMCP server exposing the KPI estimates data API as MCP tools."
+requires-python = ">=3.12"
+dependencies = [
+    "fastmcp>=2.0",
+    # kpi-backend is the local backend package. It is installed editable from
+    # ../backend in the same `pip install -e ./backend -e ./mcp` command, so this
+    # dependency resolves locally and is never fetched from PyPI.
+    "kpi-backend",
+]
+
+[tool.setuptools]
+# server.py is a single top-level module, not a package.
+py-modules = ["server"]

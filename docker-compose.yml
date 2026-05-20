@@ -1,0 +1,35 @@
+# Local development stack: PostgreSQL plus the FastAPI backend.
+# The frontend runs on the host via Vite and is not part of this file.
+services:
+  db:
+    image: postgres:16
+    environment:
+      POSTGRES_USER: kpi
+      POSTGRES_PASSWORD: kpi
+      POSTGRES_DB: kpi
+    ports:
+      # Exposed on the host so the host-run MCP server and pytest can reach it.
+      - "5432:5432"
+    volumes:
+      - kpi_pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U kpi -d kpi"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  backend:
+    build: ./backend
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      # Inside the Compose network the database host is `db`, not `localhost`.
+      DATABASE_URL: postgresql+psycopg://kpi:kpi@db:5432/kpi
+      LOG_LEVEL: INFO
+      FRONTEND_ORIGIN: http://localhost:5173
+    ports:
+      - "8000:8000"
+
+volumes:
+  kpi_pgdata:

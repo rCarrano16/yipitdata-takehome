@@ -1,0 +1,39 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "kpi-backend"
+version = "0.1.0"
+description = "FastAPI backend and shared service layer for the KPI estimates portal."
+requires-python = ">=3.12"
+dependencies = [
+    "fastapi>=0.110",
+    "uvicorn[standard]>=0.27",
+    "sqlalchemy>=2.0",
+    "psycopg[binary]>=3.1",
+    "pydantic>=2.6",
+    "pydantic-settings>=2.1",
+]
+
+[project.optional-dependencies]
+# Test and lint tooling, kept out of the runtime dependency set and the Docker image.
+dev = [
+    "ruff>=0.3",
+    "pytest>=8.0",
+    "httpx>=0.27",
+]
+
+[tool.setuptools]
+# The import root is the `app` package; `backend/` itself is not a package.
+packages = ["app", "app.routers"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
