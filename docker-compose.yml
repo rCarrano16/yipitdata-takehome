@@ -8,8 +8,11 @@ services:
       POSTGRES_PASSWORD: kpi
       POSTGRES_DB: kpi
     ports:
-      # Exposed on the host so the host-run MCP server and pytest can reach it.
-      - "5432:5432"
+      # Host port 5433 (not the default 5432) keeps this container from
+      # colliding with a PostgreSQL already installed on the host. The
+      # container-internal port stays 5432; the backend service reaches it at
+      # db:5432 on the Compose network. Host processes (MCP, pytest) use 5433.
+      - "5433:5432"
     volumes:
       - kpi_pgdata:/var/lib/postgresql/data
     healthcheck:
