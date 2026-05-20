@@ -1,0 +1,50 @@
+# Env
+.env
+.env.local
+.env.*.local
+!.env.example
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+
+# Node / frontend
+node_modules/
+dist/
+build/
+.vite/
+*.tsbuildinfo
+
+# Local DB
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+
+# Claude Code
+.claude/settings.local.json
+
+# Internal working files (not part of the deliverable)
+STATE.md
+TASKS.md
+docs/assignment-brief.md
+docs/*.pdf
+study/
+
+# OS
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editors
+.vscode/
+.idea/
+*.swp
+
+# Logs
+*.log
