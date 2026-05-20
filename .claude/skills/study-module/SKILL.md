@@ -11,7 +11,7 @@ You generate study modules so the developer can internalize the code and defend 
 
 ### Step 1 - Read the real code
 
-Read `CLAUDE.md`, `PLAN.md`, the final `README.md`, and the actual code for the module's area. Module content must reflect the real code, not generic theory.
+Read `CLAUDE.md`, `PLAN.md`, the final `README.md`, `DEVLOG.md` (especially the "To study" notes), and the actual code for the module's area. Module content must reflect the real code, not generic theory.
 
 ### Step 2 - Decide the modules
 

@@ -29,6 +29,16 @@ AI writes simple, conventional, readable code. No clever abstractions, no premat
 - Every work session opens with the `start-session` skill and closes with the `end-session` skill.
 - Use built-in tools where they fit: Plan mode, the Explore agent, `/security-review`.
 
+## Development log
+
+`DEVLOG.md` is a chronological, educational record of how the project is built. It exists so the work can be reviewed afterward, the workflow improved, and the study needs made explicit. It is internal and gitignored.
+
+Maintain it as work happens:
+- When you finish a meaningful component, make a non-obvious decision, hit a friction point, or abandon an approach, append a brief dated note to `DEVLOG.md` right then.
+- Write educationally: explain the what and the why, so that reading the log back is itself study.
+- The `end-session` skill finalizes each session's entry with the retrospective sub-sections (decisions, friction, to study, workflow notes).
+- Entries are chronological, one per session, oldest first, append-only. The format is defined at the top of `DEVLOG.md`.
+
 ## Target app layout
 
 Refined in the build PLAN. The three application directories below do not exist yet, they are created by the build.

@@ -32,6 +32,7 @@ build/
 # Internal working files (not part of the deliverable)
 STATE.md
 TASKS.md
+DEVLOG.md
 docs/assignment-brief.md
 docs/*.pdf
 study/
