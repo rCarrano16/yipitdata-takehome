@@ -12,23 +12,39 @@ function formatNumber(value: number, decimals: number): string {
 }
 
 /**
- * Format a value for its unit. The five KPIs use four units: `$` (a price,
- * two decimals), `$MM` (revenue in millions, one decimal), and `subs` /
- * `units` (whole counts).
+ * Split a value into the figure shown large on a card (the number, with any
+ * currency prefix) and the unit word shown small beside it. A summary card
+ * renders the figure as a 30px monospaced hero and the unit as a quiet label,
+ * so a long value such as "66,151,925 units" never crowds the figure.
  */
-export function formatValue(value: number, unit: string): string {
+export function formatValueParts(
+  value: number,
+  unit: string,
+): { figure: string; unitLabel: string } {
   switch (unit) {
     case '$':
-      return `$${formatNumber(value, 2)}`
+      return { figure: `$${formatNumber(value, 2)}`, unitLabel: '' }
     case '$MM':
-      return `$${formatNumber(value, 1)} MM`
+      return { figure: `$${formatNumber(value, 1)}`, unitLabel: 'MM' }
     case 'subs':
-      return `${formatNumber(value, 0)} subs`
+      return { figure: formatNumber(value, 0), unitLabel: 'subs' }
     case 'units':
-      return `${formatNumber(value, 0)} units`
+      return { figure: formatNumber(value, 0), unitLabel: 'units' }
     default:
-      return `${formatNumber(value, 2)} ${unit}`
+      return { figure: formatNumber(value, 2), unitLabel: unit }
   }
+}
+
+/**
+ * Format a value for its unit as a single string. The five KPIs use four
+ * units: `$` (a price, two decimals), `$MM` (revenue in millions, one
+ * decimal), and `subs` / `units` (whole counts). Chart tooltips, the QTD value,
+ * and the CSV export use this combined form; the card hero uses the split
+ * `formatValueParts`.
+ */
+export function formatValue(value: number, unit: string): string {
+  const { figure, unitLabel } = formatValueParts(value, unit)
+  return unitLabel ? `${figure} ${unitLabel}` : figure
 }
 
 /** A short value for a chart axis tick, e.g. 1_200_000 -> "1.2M". */

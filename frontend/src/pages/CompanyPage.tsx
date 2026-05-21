@@ -6,7 +6,7 @@ import LoadingState from '../components/LoadingState'
 import SummaryCard from '../components/SummaryCard'
 import { useApi } from '../hooks/useApi'
 
-// Match the overview's sparkline window so a card looks the same on both pages.
+// The summary card sparkline shows the most recent closed quarters of history.
 const SPARKLINE_POINTS = 8
 
 /**
@@ -54,7 +54,7 @@ export default function CompanyPage() {
   return (
     <div>
       <Link to="/" className="back-link">
-        &larr; Back to overview
+        &larr; Back to directory
       </Link>
       <h1 className="page-title">{data.company_name}</h1>
       <p className="page-subtitle">

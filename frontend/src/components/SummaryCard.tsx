@@ -1,5 +1,10 @@
 import { Link } from 'react-router-dom'
-import { formatDate, formatPeriod, formatValue } from '../lib/format'
+import {
+  formatDate,
+  formatPeriod,
+  formatValue,
+  formatValueParts,
+} from '../lib/format'
 import Sparkline from './Sparkline'
 
 interface SummaryCardProps {
@@ -34,11 +39,18 @@ export default function SummaryCard({
   // encodeURIComponent is required: KPI names contain spaces and parentheses.
   const to = `/companies/${encodeURIComponent(ticker)}/kpis/${encodeURIComponent(kpi)}`
 
+  // The hero figure and its unit render as separate elements so the 30px
+  // monospaced number stays the focus and the unit reads as a quiet label.
+  const hero = latestValue !== null ? formatValueParts(latestValue, unit) : null
+
   return (
     <Link to={to} className="card">
       <div className="card-kpi">{kpi}</div>
       <div className="card-value">
-        {latestValue !== null ? formatValue(latestValue, unit) : 'n/a'}
+        <span className="card-figure">{hero ? hero.figure : 'n/a'}</span>
+        {hero && hero.unitLabel && (
+          <span className="card-unit">{hero.unitLabel}</span>
+        )}
       </div>
       <div className="card-period">
         {latestPeriod
@@ -53,12 +65,14 @@ export default function SummaryCard({
       )}
 
       <div className="card-qtd">
-        <span className="muted">Current QTD</span>
-        <span className="card-qtd-value">
-          {qtdValue !== null ? formatValue(qtdValue, unit) : 'n/a'}
-        </span>
+        <div className="card-qtd-row">
+          <span className="card-qtd-label">Current QTD</span>
+          <span className="card-qtd-value">
+            {qtdValue !== null ? formatValue(qtdValue, unit) : 'n/a'}
+          </span>
+        </div>
+        {qtdAsOf && <div className="badge">as of {formatDate(qtdAsOf)}</div>}
       </div>
-      {qtdAsOf && <div className="badge">as of {formatDate(qtdAsOf)}</div>}
     </Link>
   )
 }

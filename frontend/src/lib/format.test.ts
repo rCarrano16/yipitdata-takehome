@@ -4,6 +4,7 @@ import {
   formatDate,
   formatPeriod,
   formatValue,
+  formatValueParts,
   parseDate,
 } from './format'
 
@@ -26,6 +27,34 @@ describe('formatValue', () => {
 
   it('falls back to two decimals plus the unit for an unknown unit', () => {
     expect(formatValue(10, 'widgets')).toBe('10.00 widgets')
+  })
+})
+
+describe('formatValueParts', () => {
+  it('keeps a dollar price whole, with no unit word', () => {
+    expect(formatValueParts(404.06, '$')).toEqual({
+      figure: '$404.06',
+      unitLabel: '',
+    })
+  })
+
+  it('splits millions into a figure and an MM label', () => {
+    expect(formatValueParts(1508.28, '$MM')).toEqual({
+      figure: '$1,508.3',
+      unitLabel: 'MM',
+    })
+  })
+
+  it('splits a large count into a figure and its unit word', () => {
+    expect(formatValueParts(66151925, 'units')).toEqual({
+      figure: '66,151,925',
+      unitLabel: 'units',
+    })
+  })
+
+  it('rejoins to the same string formatValue returns', () => {
+    const { figure, unitLabel } = formatValueParts(1000000, 'subs')
+    expect(`${figure} ${unitLabel}`).toBe(formatValue(1000000, 'subs'))
   })
 })
 

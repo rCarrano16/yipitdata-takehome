@@ -5,10 +5,10 @@ interface SparklineProps {
 }
 
 /**
- * A tiny trend line for a summary card. Hand-rolled SVG on purpose: the
- * overview renders up to 100 cards, and a full charting library per card would
- * undercut the fast-glance goal. Recharts is reserved for the one detailed
- * chart on the series page.
+ * A tiny trend line for a summary card. Hand-rolled SVG on purpose: a single
+ * polyline is far lighter than a charting library per card, which keeps the
+ * company page glanceable. Recharts is reserved for the one detailed chart on
+ * the series page.
  *
  * The viewBox uses the given width and height, but the CSS stretches the SVG
  * to the card width (`preserveAspectRatio="none"`), so the line always spans
