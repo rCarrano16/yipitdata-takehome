@@ -18,9 +18,8 @@ interface SummaryCardProps {
  * value, a sparkline of recent history, and the current QTD value with its
  * as-of date. The whole card links to the detailed series page.
  *
- * The props are primitives, not a backend type, so both the overview (from an
- * OverviewCard) and the company page (from a SeriesDetail) feed this one
- * component through a small adapter.
+ * The props are primitives, not a backend type, so the company page can feed
+ * this component from a SeriesDetail through a small adapter.
  */
 export default function SummaryCard({
   ticker,

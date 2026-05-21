@@ -3,8 +3,8 @@ import { createRoot } from 'react-dom/client'
 import { BrowserRouter, Route, Routes } from 'react-router-dom'
 import App from './App'
 import CompanyPage from './pages/CompanyPage'
+import DirectoryPage from './pages/DirectoryPage'
 import NotFoundPage from './pages/NotFoundPage'
-import OverviewPage from './pages/OverviewPage'
 import './styles.css'
 
 // SeriesPage pulls in the chart library, which is the bulk of the bundle.
@@ -22,7 +22,7 @@ createRoot(document.getElementById('root')!).render(
     <BrowserRouter>
       <Routes>
         <Route path="/" element={<App />}>
-          <Route index element={<OverviewPage />} />
+          <Route index element={<DirectoryPage />} />
           <Route path="companies/:ticker" element={<CompanyPage />} />
           <Route path="companies/:ticker/kpis/:kpi" element={<SeriesPage />} />
           <Route path="*" element={<NotFoundPage />} />

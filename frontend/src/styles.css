@@ -106,26 +106,27 @@ input:focus-visible {
   position: sticky;
   top: 0;
   z-index: 20;
-  background: var(--surface);
-  border-bottom: 1px solid var(--rule);
+  background: var(--chrome);
 }
 
 .app-header-inner {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  gap: 24px;
   height: 60px;
 }
 
 .app-title {
   font-size: 17px;
-  font-weight: 700;
-  color: var(--ink);
+  font-weight: 500;
+  color: var(--chrome-ink);
 }
 
 .app-title:hover {
   text-decoration: none;
+}
+
+.app-title:focus-visible {
+  outline-color: var(--chrome-ink);
 }
 
 .app-main {
@@ -195,13 +196,61 @@ input:focus-visible {
   color: var(--ink);
 }
 
-/* --- Overview --- */
+/* --- Company directory --- */
 
-.overview-toolbar {
+.directory-controls {
   display: flex;
-  align-items: center;
-  gap: 10px;
-  margin-bottom: 20px;
+  align-items: flex-end;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+
+.directory-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.directory-field-grow {
+  flex: 1;
+}
+
+.directory-field label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+
+.directory-search,
+.directory-sector {
+  font: inherit;
+  font-size: 14px;
+  padding: 8px 12px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
+  color: var(--ink);
+}
+
+.directory-search {
+  width: 100%;
+}
+
+.directory-search::placeholder {
+  color: var(--ink-subtle);
+}
+
+.directory-sector {
+  min-width: 180px;
+}
+
+.directory-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 12px;
 }
 
 .filter-chip {
@@ -215,36 +264,100 @@ input:focus-visible {
   font-weight: 500;
 }
 
-.company-section {
-  margin-bottom: 28px;
+.filter-chip-clear {
+  margin-left: 6px;
+  padding: 0;
+  background: none;
+  border: none;
+  color: var(--link);
+  font-size: 15px;
+  line-height: 1;
 }
 
-.company-section-header {
+.directory-suggestions {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 6px;
+  margin-bottom: 12px;
+}
+
+.directory-suggestion {
+  background: var(--accent-soft);
+  border: none;
+  border-radius: var(--radius);
+  padding: 6px 12px;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--link);
+}
+
+.directory-suggestion:hover {
+  background: var(--accent-soft-hover);
+}
+
+.directory-count {
+  font-size: 13px;
+  color: var(--ink-muted);
+  margin-bottom: 8px;
+}
+
+.directory-list {
+  list-style: none;
+  border-top: 1px solid var(--rule);
+}
+
+.directory-row {
   display: flex;
   align-items: baseline;
-  gap: 10px;
-  padding-bottom: 8px;
-  margin-bottom: 12px;
+  gap: 16px;
+  padding: 12px 8px;
   border-bottom: 1px solid var(--rule);
+  border-left: 2px solid transparent;
+  color: var(--ink);
 }
 
-.company-section-name {
-  font-size: 16px;
-  font-weight: 700;
+.directory-row:hover {
+  background: var(--surface-sunken);
+  text-decoration: none;
 }
 
-.company-section-meta {
-  font-size: 12px;
+/* The keyboard-focused row uses the design system's active-row treatment, a
+   left accent border plus a soft fill, as its focus indicator in place of the
+   generic outline. */
+.directory-row:focus-visible {
+  outline: none;
+  border-left-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.directory-row-name {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--ink);
+}
+
+.directory-row-ticker {
+  width: 88px;
+  font-family: "Roboto Mono", monospace;
+  font-size: 13px;
   color: var(--ink-muted);
 }
+
+.directory-row-sector {
+  width: 220px;
+  font-size: 13px;
+  color: var(--ink-muted);
+}
+
+/* --- Summary card --- */
 
 .card-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
   gap: 14px;
 }
-
-/* --- Summary card --- */
 
 .card {
   display: block;
@@ -437,73 +550,6 @@ input:focus-visible {
   width: 14px;
   height: 3px;
   border-radius: 2px;
-}
-
-/* --- Search --- */
-
-.search {
-  position: relative;
-  width: 340px;
-  max-width: 46vw;
-}
-
-.search-input {
-  width: 100%;
-  font: inherit;
-  padding: 8px 12px;
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  background: var(--surface);
-}
-
-.search-results {
-  position: absolute;
-  top: calc(100% + 6px);
-  left: 0;
-  right: 0;
-  background: var(--surface);
-  border: 1px solid var(--rule);
-  border-radius: var(--radius);
-  box-shadow: var(--shadow-overlay);
-  max-height: 60vh;
-  overflow-y: auto;
-  z-index: 30;
-}
-
-.search-group-title {
-  font-size: 11px;
-  font-weight: 700;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
-  color: var(--ink-muted);
-  padding: 8px 12px 4px;
-}
-
-.search-result {
-  display: block;
-  width: 100%;
-  text-align: left;
-  background: none;
-  border: none;
-  padding: 7px 12px;
-  color: var(--ink);
-  font-size: 13px;
-}
-
-.search-result:hover,
-.search-result.is-active {
-  background: var(--surface-sunken);
-}
-
-.search-result-meta {
-  color: var(--ink-muted);
-  font-size: 12px;
-}
-
-.search-empty {
-  padding: 12px;
-  color: var(--ink-muted);
-  font-size: 13px;
 }
 
 /* --- Not found --- */

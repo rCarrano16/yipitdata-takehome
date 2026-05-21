@@ -60,22 +60,3 @@ export interface CompanyEstimates {
   sector: string
   series: SeriesDetail[]
 }
-
-/** One glanceable summary card: a single (company, KPI) series at a glance. */
-export interface OverviewCard {
-  ticker: string
-  company_name: string
-  sector: string
-  kpi: string
-  unit: string
-  latest_historical_value: number | null
-  latest_historical_period: string | null
-  current_qtd_value: number | null
-  current_qtd_as_of: string | null
-  sparkline: number[]
-}
-
-/** The overview: one card per (company, KPI) series. */
-export interface OverviewResponse {
-  cards: OverviewCard[]
-}

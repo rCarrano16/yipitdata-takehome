@@ -1,11 +1,10 @@
 import { Suspense } from 'react'
 import { Link, Outlet, useLocation } from 'react-router-dom'
 import LoadingState from './components/LoadingState'
-import SearchBar from './components/SearchBar'
 
-// The layout shell: a sticky header with the title and the global search, and
-// a <main> where the routed page renders. SearchBar stays mounted across
-// navigations, so its one-time KPI fetch is not repeated. The <Suspense>
+// The layout shell: a calm chrome header carrying only the wordmark, and a
+// <main> where the routed page renders. The portal has one search, and it
+// lives in the company directory page, not in this header. The <Suspense>
 // covers the lazily loaded series page, so only the content area shows a
 // fallback while its chunk loads, not the whole shell.
 export default function App() {
@@ -22,7 +21,6 @@ export default function App() {
           <Link to="/" className="app-title">
             KPI Estimates Portal
           </Link>
-          <SearchBar />
         </div>
       </header>
       <main className="container app-main">

@@ -8,7 +8,6 @@ import type {
   CompanyEstimates,
   CompanySummary,
   KpiInfo,
-  OverviewResponse,
   SeriesDetail,
 } from './types'
 
@@ -69,11 +68,6 @@ async function request<T>(path: string): Promise<T> {
 
 function searchSuffix(search: string | undefined): string {
   return search ? `?search=${encodeURIComponent(search)}` : ''
-}
-
-/** The glance tier: one card per (company, KPI) series, optionally filtered. */
-export function getOverview(search?: string): Promise<OverviewResponse> {
-  return request<OverviewResponse>(`/overview${searchSuffix(search)}`)
 }
 
 /** Companies, optionally narrowed by a ticker / name / sector search. */
