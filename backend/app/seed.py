@@ -19,6 +19,7 @@ from sqlalchemy import func, select, text
 from sqlalchemy.orm import Session
 
 from app.db import engine, session_scope
+from app.log_config import configure_logging
 from app.models import Base, Company, Estimate, Kpi
 
 logger = logging.getLogger("app.seed")
@@ -196,10 +197,9 @@ def seed(csv_path: Path = DEFAULT_CSV_PATH, force: bool = False) -> None:
 
 def main() -> None:
     """Command-line entry point for `python -m app.seed`."""
-    logging.basicConfig(
-        level=logging.INFO,
-        format="%(asctime)s %(levelname)s %(name)s: %(message)s",
-    )
+    # Route the seed's own log lines through the JSON handler, so the seed step
+    # in the Docker start command emits the same structured format as the API.
+    configure_logging()
     parser = argparse.ArgumentParser(description="Seed the KPI database from the sample CSV.")
     parser.add_argument(
         "--force",

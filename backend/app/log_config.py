@@ -65,11 +65,18 @@ def configure_logging() -> None:
     root.addHandler(handler)
     root.setLevel(settings.log_level.upper())
 
-    # uvicorn installs its own handlers; clear them and let its loggers
-    # propagate to the root JSON handler instead. The access logger is disabled
-    # at the command line (--no-access-log): the request-logging middleware is
-    # the access log, so uvicorn's plaintext one would only duplicate it.
-    for name in ("uvicorn", "uvicorn.error", "uvicorn.access"):
+    # uvicorn installs its own handlers; clear them so its startup and error
+    # lines propagate to the root JSON handler instead of printing as plaintext.
+    for name in ("uvicorn", "uvicorn.error"):
         uvicorn_logger = logging.getLogger(name)
         uvicorn_logger.handlers.clear()
         uvicorn_logger.propagate = True
+
+    # The access logger is silenced, not propagated. The request-logging
+    # middleware already emits one structured line per request, so letting
+    # uvicorn's access logger through would log every request twice. Clearing
+    # its handlers and disabling propagation drops its records even on a uvicorn
+    # build that still calls the logger when --no-access-log is set.
+    access_logger = logging.getLogger("uvicorn.access")
+    access_logger.handlers.clear()
+    access_logger.propagate = False
