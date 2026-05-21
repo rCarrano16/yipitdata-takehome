@@ -1,0 +1,166 @@
+"""Pydantic models: the API contract shared by the REST routers and the MCP tools.
+
+These are the request and response shapes. The service layer returns these
+models, so both consumers receive identical, typed results.
+
+A note on `value`. In the database it is `numeric` (exact, no float drift). The
+request schema (`PublishEstimateRequest`) keeps `value` as a `Decimal`, so an
+incoming JSON number is stored without a float round-trip. The response schemas
+expose `value` as a `float`, because the chart and the CSV export need a number
+and Pydantic would otherwise serialize a `Decimal` to a JSON string.
+"""
+
+from datetime import date, datetime
+from decimal import Decimal
+from typing import Literal
+
+from pydantic import BaseModel, ConfigDict, Field, model_validator
+
+
+class CompanySummary(BaseModel):
+    """A company as it appears in a list or a search result."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    ticker: str
+    name: str
+    sector: str
+
+
+class KpiInfo(BaseModel):
+    """A KPI and the unit its values are measured in."""
+
+    model_config = ConfigDict(from_attributes=True)
+
+    name: str
+    unit: str
+
+
+class CompanyDetail(BaseModel):
+    """One company and the KPIs it reports."""
+
+    ticker: str
+    name: str
+    sector: str
+    kpis: list[KpiInfo]
+
+
+class EstimatePoint(BaseModel):
+    """One closed-quarter historical estimate: a single point on the history line."""
+
+    period: str
+    period_start: date
+    period_end: date
+    value: float
+    created_at: datetime
+
+
+class QtdSnapshot(BaseModel):
+    """One intra-quarter QTD snapshot, stamped with the as_of date it is effective for."""
+
+    period: str
+    period_start: date
+    period_end: date
+    value: float
+    as_of: date
+    created_at: datetime
+
+
+class SeriesDetail(BaseModel):
+    """The full (company, KPI) time series: closed-quarter history plus QTD snapshots.
+
+    `current_qtd` is the snapshot with the latest `as_of`, surfaced here so the
+    UI and the MCP tools never recompute it. `last_updated` is the most recent
+    `created_at` across the series, the audit "last updated" timestamp.
+    """
+
+    ticker: str
+    company_name: str
+    kpi: str
+    unit: str
+    history: list[EstimatePoint]
+    qtd_snapshots: list[QtdSnapshot]
+    current_qtd: QtdSnapshot | None
+    last_updated: datetime | None
+
+
+class CompanyEstimates(BaseModel):
+    """Every KPI series for one company: the answer to "all estimates for a company"."""
+
+    ticker: str
+    company_name: str
+    sector: str
+    series: list[SeriesDetail]
+
+
+class OverviewCard(BaseModel):
+    """One glanceable summary card: a single (company, KPI) series at a glance."""
+
+    ticker: str
+    company_name: str
+    sector: str
+    kpi: str
+    unit: str
+    latest_historical_value: float | None
+    latest_historical_period: str | None
+    current_qtd_value: float | None
+    current_qtd_as_of: date | None
+    sparkline: list[float]
+
+
+class OverviewResponse(BaseModel):
+    """The overview: one card per (company, KPI) series."""
+
+    cards: list[OverviewCard]
+
+
+class PublishEstimateRequest(BaseModel):
+    """The body of POST /estimates: a new estimate to append.
+
+    Every field and cross-field rule is validated here, so an invalid request
+    fails fast as an HTTP 422 before the service layer runs. The service layer
+    only checks that the ticker and the KPI exist.
+    """
+
+    ticker: str = Field(min_length=1, max_length=16)
+    kpi: str = Field(min_length=1, max_length=64)
+    period: str = Field(min_length=1, max_length=8)
+    period_start: date
+    period_end: date
+    estimate_type: Literal["historical", "qtd"]
+    value: Decimal = Field(ge=0)
+    as_of: date | None = None
+
+    @model_validator(mode="after")
+    def _check_consistency(self) -> "PublishEstimateRequest":
+        """Enforce the period ordering and the as_of / estimate_type invariant.
+
+        This mirrors the database CHECK constraint: a qtd estimate is a snapshot
+        and must carry an as_of date; a historical estimate is a closed quarter
+        and must not.
+        """
+        if self.period_end < self.period_start:
+            raise ValueError("period_end must not precede period_start")
+        if self.estimate_type == "qtd" and self.as_of is None:
+            raise ValueError("a qtd estimate requires an as_of date")
+        if self.estimate_type == "historical" and self.as_of is not None:
+            raise ValueError("a historical estimate must not carry an as_of date")
+        return self
+
+
+class EstimateRecord(BaseModel):
+    """The response of POST /estimates: the row that was appended, echoed back.
+
+    `id` and `created_at` are assigned by the server, so the caller learns both.
+    """
+
+    id: int
+    ticker: str
+    kpi: str
+    period: str
+    period_start: date
+    period_end: date
+    estimate_type: str
+    value: float
+    as_of: date | None
+    created_at: datetime

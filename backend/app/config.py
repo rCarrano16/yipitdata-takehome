@@ -23,6 +23,10 @@ class Settings(BaseSettings):
     )
 
     database_url: str
+    # Only the test suite uses this. It is optional so the application can run
+    # without it; conftest.py falls back to the main URL with the database name
+    # swapped to kpi_test when it is unset.
+    test_database_url: str | None = None
     log_level: str = "INFO"
     frontend_origin: str = "http://localhost:5173"
 
