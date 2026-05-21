@@ -8,13 +8,36 @@ version = "0.1.0"
 description = "FastMCP server exposing the KPI estimates data API as MCP tools."
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp>=2.0",
+    "fastmcp>=3.3,<4",
     # kpi-backend is the local backend package. It is installed editable from
     # ../backend in the same `pip install -e ./backend -e ./mcp` command, so this
     # dependency resolves locally and is never fetched from PyPI.
     "kpi-backend",
 ]
 
+[project.optional-dependencies]
+# Test and lint tooling, kept out of the runtime dependency set.
+dev = [
+    "ruff>=0.3",
+    "pytest>=8.0",
+]
+
 [tool.setuptools]
 # server.py is a single top-level module, not a package.
 py-modules = ["server"]
+
+[tool.ruff]
+line-length = 100
+target-version = "py312"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]
+
+[tool.ruff.lint.isort]
+# `app` is the backend package imported in-process by the server, and `server`
+# is this package's own module imported by the tests. Mark both first-party so
+# they sort into their own import group, as `app` does in the backend.
+known-first-party = ["app", "server"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

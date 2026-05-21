@@ -73,3 +73,10 @@ def test_date_filter_can_exclude_every_point(db_session):
     assert series.qtd_snapshots == []
     assert series.current_qtd is None
     assert series.last_updated is None
+
+
+def test_kpi_lookup_is_case_insensitive(db_session):
+    # The KPI lookup matches case-insensitively, like the company lookup, so an
+    # LLM (or a user) need not reproduce the exact casing of "Total Revenue ($MM)".
+    series = get_series(db_session, "ACME", "total revenue ($mm)")
+    assert series.kpi == "Total Revenue ($MM)"

@@ -54,8 +54,8 @@ def _get_company(session: Session, ticker: str) -> Company:
 
 
 def _get_kpi(session: Session, kpi_name: str) -> Kpi:
-    """Return the KPI for a name, or raise NotFoundError."""
-    kpi = session.scalar(select(Kpi).where(Kpi.name == kpi_name))
+    """Return the KPI for a name, or raise NotFoundError. Case-insensitive."""
+    kpi = session.scalar(select(Kpi).where(func.lower(Kpi.name) == kpi_name.lower()))
     if kpi is None:
         raise NotFoundError(f"KPI not found: {kpi_name}")
     return kpi

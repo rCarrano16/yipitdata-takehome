@@ -1,8 +1,213 @@
-"""FastMCP server exposing the KPI estimates data API as MCP tools.
+"""FastMCP server: the KPI estimates data API exposed as MCP tools.
 
-Phase 0 stub. The five read-only tools (search_companies, list_kpis,
-get_company_kpis, get_kpi_estimates, get_current_qtd) are implemented in
-Phase 4. They import and reuse the backend service layer in-process
-(from app.service import ...), so the MCP server never re-implements query
-logic and never makes a network hop to the REST API.
+This is the AI-agent channel of the application. An LLM client (Claude Desktop,
+Cursor, and similar) connects over stdio and calls these five read-only tools to
+look up companies, retrieve KPI estimates, and query quarter-to-date (QTD) data.
+
+The tools reuse the backend service layer in-process: they import `app.service`
+and call the exact same functions the REST routers call, so query logic is
+written once and never duplicated, with no HTTP hop to the REST API. Each tool
+opens its own short-lived database session via `session_scope`.
+
+Each tool is annotated with a Pydantic return type, so FastMCP generates a JSON
+Schema for the tool output as well as its input. That output schema is the
+formal description of the result shape, which is what lets a calling LLM
+discover what it gets back. Two tools return existing service-layer schemas
+(`CompanyDetail`, `SeriesDetail`); the other three return small wrapper models
+defined here, because the MCP protocol requires a tool output schema to be an
+object, not a bare array or scalar.
+
+stdio note: with stdio transport the process stdout IS the JSON-RPC channel, so
+nothing else may be written there. This module therefore never imports
+`app.main` (importing it would call `configure_logging()`, which installs a
+stdout log handler) and configures no logging of its own. FastMCP logs to
+stderr, which stdio leaves free.
 """
+
+from datetime import date
+
+from fastmcp import FastMCP
+from fastmcp.exceptions import ToolError
+from pydantic import BaseModel
+
+from app import service
+from app.db import session_scope
+from app.errors import NotFoundError
+from app.schemas import (
+    CompanyDetail,
+    CompanySummary,
+    KpiInfo,
+    QtdSnapshot,
+    SeriesDetail,
+)
+
+# ---------------------------------------------------------------------------
+# Tool result models
+#
+# The MCP protocol requires a tool output schema to be a JSON object. Two tools
+# already return object-typed service schemas (CompanyDetail, SeriesDetail) and
+# need no wrapper. The three models below wrap results that would otherwise be a
+# bare list or an ad-hoc shape, so every tool advertises a clean, object-typed
+# output schema. They are MCP-specific (the REST API returns bare arrays for the
+# list endpoints), so they live here and not in the shared app/schemas.py.
+# ---------------------------------------------------------------------------
+
+
+class CompanyList(BaseModel):
+    """The result of search_companies: the companies that matched."""
+
+    companies: list[CompanySummary]
+
+
+class KpiList(BaseModel):
+    """The result of list_kpis: every KPI and the unit it is measured in."""
+
+    kpis: list[KpiInfo]
+
+
+class CurrentQtd(BaseModel):
+    """The result of get_current_qtd: the latest QTD snapshot for one series.
+
+    `current_qtd` is null when the series has no QTD data.
+    """
+
+    ticker: str
+    kpi: str
+    unit: str
+    current_qtd: QtdSnapshot | None
+
+
+mcp = FastMCP(
+    name="kpi-estimates",
+    version="0.1.0",
+    instructions=(
+        "Read-only access to quarterly KPI estimates for public companies, the "
+        "same data the investor web portal is built on.\n\n"
+        "Each (company, KPI) pair is a time series with two parts:\n"
+        "- history: one value per closed fiscal quarter.\n"
+        "- QTD (quarter-to-date): several intra-quarter snapshots of the "
+        "in-progress quarter, each stamped with an `as_of` date. The current QTD "
+        "value is the snapshot with the latest `as_of`.\n\n"
+        "Identifiers are resolved case-insensitively. To get valid identifiers, "
+        "call `search_companies` for tickers and `list_kpis` for KPI names "
+        "before calling the estimate tools."
+    ),
+    # Mask the details of unexpected errors (for example a database error that
+    # could carry a connection string). Errors raised deliberately as ToolError
+    # are always shown; this only affects exceptions that were not anticipated.
+    mask_error_details=True,
+)
+
+# Every tool is a pure read against the project's own database. These MCP
+# annotations state that explicitly: a client (for example Claude Desktop) reads
+# them to decide whether a call is safe to run without asking the user first.
+# All four hints are truthful for a read-only query over a fixed data set.
+_READ_ONLY_ANNOTATIONS = {
+    "readOnlyHint": True,
+    "destructiveHint": False,
+    "idempotentHint": True,
+    "openWorldHint": False,
+}
+
+
+@mcp.tool(annotations=_READ_ONLY_ANNOTATIONS)
+def search_companies(query: str | None = None) -> CompanyList:
+    """Find companies by ticker, name, or sector.
+
+    Use this to discover which companies exist and to get the exact ticker the
+    other tools expect. With no query it returns every company.
+
+    Args:
+        query: Optional case-insensitive text matched against ticker, company
+            name, and sector. Omit it to list all companies.
+    """
+    with session_scope() as session:
+        companies = service.list_companies(session, search=query)
+    return CompanyList(companies=companies)
+
+
+@mcp.tool(annotations=_READ_ONLY_ANNOTATIONS)
+def list_kpis() -> KpiList:
+    """List every KPI and the unit its values are measured in.
+
+    Use this to get the exact KPI names the estimate tools expect, for example
+    "Total Revenue ($MM)" or "ASP ($)".
+    """
+    with session_scope() as session:
+        kpis = service.list_kpis(session)
+    return KpiList(kpis=kpis)
+
+
+@mcp.tool(annotations=_READ_ONLY_ANNOTATIONS)
+def get_company_kpis(ticker: str) -> CompanyDetail:
+    """Get one company and the list of KPIs it reports.
+
+    Use this after `search_companies` to see which KPIs a company has before
+    requesting its estimates.
+
+    Args:
+        ticker: The company ticker, case-insensitive, for example "ACME".
+    """
+    try:
+        with session_scope() as session:
+            return service.get_company(session, ticker)
+    except NotFoundError as e:
+        raise ToolError(str(e)) from e
+
+
+@mcp.tool(annotations=_READ_ONLY_ANNOTATIONS)
+def get_kpi_estimates(
+    ticker: str,
+    kpi: str,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> SeriesDetail:
+    """Get the full estimate history and QTD snapshots for one company KPI.
+
+    Returns the closed-quarter history, every QTD snapshot of the in-progress
+    quarter (each with its `as_of` date), and the current QTD value. This is the
+    detailed series behind the portal's history-vs-QTD chart.
+
+    Args:
+        ticker: The company ticker, case-insensitive, for example "ACME".
+        kpi: The KPI name, case-insensitive, for example "Total Revenue ($MM)".
+            Call `list_kpis` for the available names.
+        date_from: Optional inclusive lower bound as an ISO date (YYYY-MM-DD).
+            History is filtered by quarter-end date, QTD snapshots by `as_of`.
+        date_to: Optional inclusive upper bound as an ISO date (YYYY-MM-DD).
+    """
+    try:
+        with session_scope() as session:
+            return service.get_series(session, ticker, kpi, date_from, date_to)
+    except NotFoundError as e:
+        raise ToolError(str(e)) from e
+
+
+@mcp.tool(annotations=_READ_ONLY_ANNOTATIONS)
+def get_current_qtd(ticker: str, kpi: str) -> CurrentQtd:
+    """Get only the current quarter-to-date (QTD) estimate for one company KPI.
+
+    Returns the single most recent QTD snapshot, the one with the latest `as_of`
+    date. Use this when you only need the latest in-progress-quarter value, not
+    the full history. `current_qtd` is null if the series has no QTD data.
+
+    Args:
+        ticker: The company ticker, case-insensitive, for example "ACME".
+        kpi: The KPI name, case-insensitive, for example "Total Revenue ($MM)".
+            Call `list_kpis` for the available names.
+    """
+    try:
+        with session_scope() as session:
+            series = service.get_series(session, ticker, kpi)
+    except NotFoundError as e:
+        raise ToolError(str(e)) from e
+    return CurrentQtd(
+        ticker=series.ticker,
+        kpi=series.kpi,
+        unit=series.unit,
+        current_qtd=series.current_qtd,
+    )
+
+
+if __name__ == "__main__":
+    mcp.run(transport="stdio")
