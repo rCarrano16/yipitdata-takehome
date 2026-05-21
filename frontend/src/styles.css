@@ -475,56 +475,79 @@ input:focus-visible {
   margin-bottom: 16px;
 }
 
-.series-toolbar {
+/* The date filter sits directly below the chart title (design-system 9). */
+.date-filter {
   display: flex;
   flex-wrap: wrap;
   align-items: flex-end;
-  justify-content: space-between;
-  gap: 14px;
-  margin-bottom: 16px;
-}
-
-.date-filter {
-  display: flex;
-  align-items: flex-end;
   gap: 12px;
+  margin-bottom: 16px;
 }
 
 .date-field {
   display: flex;
   flex-direction: column;
-  gap: 3px;
+  gap: 4px;
 }
 
+/* Field label: the label/caption type style (design-system sections 4, 7). */
 .date-field label {
-  font-size: 12px;
-  font-weight: 600;
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
   color: var(--ink-muted);
 }
 
 .date-field input {
   font: inherit;
+  font-size: 14px;
   padding: 6px 8px;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: var(--surface);
+  color: var(--ink);
+}
+
+.series-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-bottom: 16px;
 }
 
 .timestamps {
   display: flex;
-  gap: 18px;
   flex-wrap: wrap;
-  margin-bottom: 16px;
+  gap: 24px;
 }
 
 .timestamp {
-  font-size: 12px;
+  font-size: 13px;
   color: var(--ink-muted);
 }
 
 .timestamp strong {
+  font-family: "Roboto Mono", monospace;
+  font-weight: 500;
   color: var(--ink);
-  font-weight: 600;
+}
+
+/* Non-blocking banner: a refetch failed but the last good data is still up. */
+.error-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 8px 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--negative);
+  border-radius: var(--radius);
+  font-size: 13px;
+  color: var(--negative);
 }
 
 .chart-card {
@@ -541,7 +564,7 @@ input:focus-visible {
 
 .chart-empty {
   text-align: center;
-  padding: 64px 20px;
+  padding: 56px 20px;
   color: var(--ink-muted);
 }
 
@@ -556,13 +579,17 @@ input:focus-visible {
 
 .chart-tooltip-label {
   font-weight: 500;
-  margin-bottom: 2px;
+  margin-bottom: 4px;
+}
+
+.chart-tooltip-value {
+  font-family: "Roboto Mono", monospace;
 }
 
 .legend {
   display: flex;
   gap: 16px;
-  margin-top: 10px;
+  margin-top: 12px;
   font-size: 12px;
   color: var(--ink-muted);
 }
@@ -570,13 +597,13 @@ input:focus-visible {
 .legend-item {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
 }
 
 .legend-swatch {
   width: 14px;
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-pill);
 }
 
 /* --- Not found --- */

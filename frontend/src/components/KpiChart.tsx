@@ -10,12 +10,28 @@ import {
 import type { SeriesDetail } from '../api/types'
 import type { ChartPoint } from '../lib/chartData'
 import { toChartData } from '../lib/chartData'
-import { formatCompact, formatDate, formatPeriod, formatValue } from '../lib/format'
+import {
+  formatCompact,
+  formatDate,
+  formatPeriod,
+  formatQuarterTick,
+  formatValue,
+} from '../lib/format'
 
-// These match --accent and --qtd in styles.css. Recharts takes colors as
-// props, so they are kept here as plain constants.
-const HISTORICAL_COLOR = '#2563eb'
-const QTD_COLOR = '#d97706'
+// Recharts takes colors as plain props, and var() does not resolve inside SVG
+// presentation attributes, so the design tokens are mirrored here as literal
+// constants. Keep these in sync with the tokens in styles.css.
+const HISTORICAL_COLOR = '#197f9f' // --series-history
+const QTD_COLOR = '#f48c5c' // --series-qtd
+const CHROME_COLOR = '#dde5e7' // --rule: grid, axis, and tick lines
+const AXIS_TEXT_COLOR = '#616767' // --ink-muted: axis tick labels
+
+// Axis tick text: Roboto Mono, 11px, --ink-muted (design-system section 8).
+const AXIS_TICK = {
+  fontSize: 11,
+  fontFamily: '"Roboto Mono", monospace',
+  fill: AXIS_TEXT_COLOR,
+}
 
 interface KpiChartProps {
   series: SeriesDetail
@@ -44,23 +60,23 @@ export default function KpiChart({ series }: KpiChartProps) {
     <>
       <ResponsiveContainer width="100%" height={380}>
         <LineChart data={data} margin={{ top: 8, right: 24, bottom: 4, left: 8 }}>
-          <CartesianGrid stroke="#eef0f3" />
+          <CartesianGrid stroke={CHROME_COLOR} vertical={false} />
           <XAxis
             dataKey="t"
             type="number"
             scale="time"
             domain={['dataMin', 'dataMax']}
-            tick={{ fontSize: 12 }}
-            tickFormatter={(t: number) =>
-              new Date(t).toLocaleDateString('en-US', {
-                month: 'short',
-                year: 'numeric',
-              })
-            }
+            tickCount={8}
+            tick={AXIS_TICK}
+            axisLine={{ stroke: CHROME_COLOR }}
+            tickLine={{ stroke: CHROME_COLOR }}
+            tickFormatter={(t: number) => formatQuarterTick(t)}
           />
           <YAxis
             width={64}
-            tick={{ fontSize: 12 }}
+            tick={AXIS_TICK}
+            axisLine={{ stroke: CHROME_COLOR }}
+            tickLine={{ stroke: CHROME_COLOR }}
             tickFormatter={(value: number) => formatCompact(value)}
           />
           <Tooltip
@@ -82,7 +98,9 @@ export default function KpiChart({ series }: KpiChartProps) {
                   <div className="chart-tooltip-label">
                     {isQtd ? 'QTD snapshot' : 'Closed quarter'}
                   </div>
-                  <div>{formatValue(Number(entry.value), series.unit)}</div>
+                  <div className="chart-tooltip-value">
+                    {formatValue(Number(entry.value), series.unit)}
+                  </div>
                   <div className="muted">
                     {isQtd && point.asOf
                       ? `as of ${formatDate(point.asOf)}`

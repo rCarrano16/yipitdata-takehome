@@ -62,6 +62,18 @@ export function formatPeriod(period: string): string {
 }
 
 /**
+ * Format an epoch-millis timestamp as a short quarter label for a chart axis
+ * tick, e.g. "Q1 '24". The detailed chart's X axis is a time scale, so a tick
+ * can land on any date; the label always reports the quarter that date is in.
+ */
+export function formatQuarterTick(t: number): string {
+  const d = new Date(t)
+  const quarter = Math.floor(d.getMonth() / 3) + 1
+  const year = String(d.getFullYear()).slice(-2)
+  return `Q${quarter} '${year}`
+}
+
+/**
  * Parse an ISO string into a Date. A date-only string ("YYYY-MM-DD") is given
  * a local-midnight time, so the displayed day never shifts by a time zone. A
  * full datetime carries its own offset and is parsed as-is.

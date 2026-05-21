@@ -17,6 +17,8 @@ import { useApi } from '../hooks/useApi'
  * so the chart, the timestamps, and the export all read one consistent
  * filtered payload. While a re-fetch is in flight `useApi` keeps the previous
  * data, so the chart stays on screen (dimmed) instead of flashing a spinner.
+ * If a re-fetch fails, the last good data stays up under a non-blocking error
+ * banner rather than replacing the whole page with a full error state.
  */
 export default function SeriesPage() {
   const { ticker = '', kpi = '' } = useParams()
@@ -57,21 +59,32 @@ export default function SeriesPage() {
         </p>
       </div>
 
-      <TimestampBadge
-        lastUpdated={data.last_updated}
-        qtdAsOf={data.current_qtd ? data.current_qtd.as_of : null}
-        filtered={Boolean(from || to)}
+      <DateRangeFilter
+        from={from}
+        to={to}
+        onFromChange={setFrom}
+        onToChange={setTo}
       />
 
       <div className="series-toolbar">
-        <DateRangeFilter
-          from={from}
-          to={to}
-          onFromChange={setFrom}
-          onToChange={setTo}
+        <TimestampBadge
+          lastUpdated={data.last_updated}
+          qtdAsOf={data.current_qtd ? data.current_qtd.as_of : null}
+          filtered={Boolean(from || to)}
         />
         <ExportButton series={data} disabled={isEmpty} />
       </div>
+
+      {/* A re-fetch failed but `useApi` kept the last good data: show it under
+          a non-blocking banner instead of a full-page error (review F3). */}
+      {error && (
+        <div className="error-banner">
+          <span>Could not refresh the series: {error.message}</span>
+          <button type="button" className="btn" onClick={reload}>
+            Retry
+          </button>
+        </div>
+      )}
 
       <div className={loading ? 'chart-card chart-stale' : 'chart-card'}>
         <KpiChart series={data} />

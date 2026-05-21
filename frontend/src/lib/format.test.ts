@@ -3,6 +3,7 @@ import {
   formatCompact,
   formatDate,
   formatPeriod,
+  formatQuarterTick,
   formatValue,
   formatValueParts,
   parseDate,
@@ -72,6 +73,17 @@ describe('formatPeriod', () => {
 
   it('passes through a value it does not recognize', () => {
     expect(formatPeriod('unknown')).toBe('unknown')
+  })
+})
+
+describe('formatQuarterTick', () => {
+  it('labels a timestamp with its quarter and two-digit year', () => {
+    expect(
+      formatQuarterTick(new Date('2024-02-15T00:00:00').getTime()),
+    ).toBe("Q1 '24")
+    expect(
+      formatQuarterTick(new Date('2025-11-01T00:00:00').getTime()),
+    ).toBe("Q4 '25")
   })
 })
 
