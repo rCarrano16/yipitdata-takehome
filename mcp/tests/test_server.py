@@ -20,6 +20,7 @@ import server
 from app.errors import NotFoundError
 from app.schemas import (
     CompanyDetail,
+    CompanyEstimates,
     CompanySummary,
     EstimatePoint,
     KpiInfo,
@@ -30,7 +31,8 @@ from app.schemas import (
 _TOOL_NAMES = {
     "search_companies",
     "list_kpis",
-    "get_company_kpis",
+    "get_company",
+    "get_company_estimates",
     "get_kpi_estimates",
     "get_current_qtd",
 }
@@ -92,7 +94,7 @@ def _series(*, current_qtd: QtdSnapshot | None) -> SeriesDetail:
 # --- tool registration -----------------------------------------------------
 
 
-def test_all_five_tools_are_registered():
+def test_all_tools_are_registered():
     assert {t.name for t in _list_tools()} == _TOOL_NAMES
 
 
@@ -101,6 +103,8 @@ def test_every_tool_declares_read_only_annotations():
         assert tool.annotations is not None, tool.name
         assert tool.annotations.readOnlyHint is True, tool.name
         assert tool.annotations.destructiveHint is False, tool.name
+        assert tool.annotations.idempotentHint is True, tool.name
+        assert tool.annotations.openWorldHint is False, tool.name
 
 
 def test_every_tool_publishes_an_object_output_schema():
@@ -153,10 +157,10 @@ def test_list_kpis_wraps_results(monkeypatch):
     assert result.structured_content == {"kpis": [{"name": "ASP ($)", "unit": "$"}]}
 
 
-# --- get_company_kpis ------------------------------------------------------
+# --- get_company -----------------------------------------------------------
 
 
-def test_get_company_kpis_returns_the_company(monkeypatch):
+def test_get_company_returns_the_company(monkeypatch):
     detail = CompanyDetail(
         ticker="ACME",
         name="Acme Inc",
@@ -164,17 +168,63 @@ def test_get_company_kpis_returns_the_company(monkeypatch):
         kpis=[KpiInfo(name="ASP ($)", unit="$")],
     )
     monkeypatch.setattr(server.service, "get_company", lambda session, ticker: detail)
-    result = _call_tool("get_company_kpis", {"ticker": "ACME"})
+    result = _call_tool("get_company", {"ticker": "ACME"})
     assert result.structured_content == detail.model_dump(mode="json")
 
 
-def test_get_company_kpis_unknown_ticker_raises_tool_error(monkeypatch):
+def test_get_company_unknown_ticker_raises_tool_error(monkeypatch):
     def fake_get_company(session, ticker):
         raise NotFoundError(f"company not found: {ticker}")
 
     monkeypatch.setattr(server.service, "get_company", fake_get_company)
     with pytest.raises(ToolError, match="company not found: NOPE"):
-        _call_tool("get_company_kpis", {"ticker": "NOPE"})
+        _call_tool("get_company", {"ticker": "NOPE"})
+
+
+# --- get_company_estimates -------------------------------------------------
+
+
+def test_get_company_estimates_returns_every_series_and_passes_dates(monkeypatch):
+    seen = {}
+
+    def fake_get_company_estimates(session, ticker, date_from=None, date_to=None):
+        seen.update(ticker=ticker, date_from=date_from, date_to=date_to)
+        return CompanyEstimates(
+            ticker="ACME",
+            company_name="Acme Inc",
+            sector="Cloud",
+            series=[_series(current_qtd=_QTD)],
+        )
+
+    monkeypatch.setattr(server.service, "get_company_estimates", fake_get_company_estimates)
+    result = _call_tool(
+        "get_company_estimates",
+        {"ticker": "ACME", "date_from": "2025-01-01", "date_to": "2025-12-31"},
+    )
+
+    assert seen["ticker"] == "ACME"
+    # FastMCP coerces the ISO date strings to date objects before the tool runs.
+    assert seen["date_from"] == date(2025, 1, 1)
+    assert seen["date_to"] == date(2025, 12, 31)
+    assert result.structured_content["ticker"] == "ACME"
+    assert len(result.structured_content["series"]) == 1
+
+
+def test_get_company_estimates_unknown_ticker_raises_tool_error(monkeypatch):
+    def fake_get_company_estimates(session, ticker, date_from=None, date_to=None):
+        raise NotFoundError(f"company not found: {ticker}")
+
+    monkeypatch.setattr(server.service, "get_company_estimates", fake_get_company_estimates)
+    with pytest.raises(ToolError, match="company not found: NOPE"):
+        _call_tool("get_company_estimates", {"ticker": "NOPE"})
+
+
+def test_get_company_estimates_inverted_date_range_raises_tool_error():
+    with pytest.raises(ToolError, match="must not be after"):
+        _call_tool(
+            "get_company_estimates",
+            {"ticker": "ACME", "date_from": "2025-12-31", "date_to": "2025-01-01"},
+        )
 
 
 # --- get_kpi_estimates -----------------------------------------------------
@@ -213,6 +263,19 @@ def test_get_kpi_estimates_unknown_series_raises_tool_error(monkeypatch):
     monkeypatch.setattr(server.service, "get_series", fake_get_series)
     with pytest.raises(ToolError, match="KPI not found"):
         _call_tool("get_kpi_estimates", {"ticker": "ACME", "kpi": "Nope"})
+
+
+def test_get_kpi_estimates_inverted_date_range_raises_tool_error():
+    with pytest.raises(ToolError, match="must not be after"):
+        _call_tool(
+            "get_kpi_estimates",
+            {
+                "ticker": "ACME",
+                "kpi": "Total Revenue ($MM)",
+                "date_from": "2025-12-31",
+                "date_to": "2025-01-01",
+            },
+        )
 
 
 # --- get_current_qtd -------------------------------------------------------

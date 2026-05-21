@@ -60,6 +60,7 @@ export default function SeriesPage() {
       <TimestampBadge
         lastUpdated={data.last_updated}
         qtdAsOf={data.current_qtd ? data.current_qtd.as_of : null}
+        filtered={Boolean(from || to)}
       />
 
       <div className="series-toolbar">

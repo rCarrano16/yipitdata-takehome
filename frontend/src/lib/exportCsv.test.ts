@@ -64,6 +64,15 @@ describe('seriesToCsv', () => {
     const lines = seriesToCsv(series).split('\r\n')
     expect(lines[1].startsWith('"Revenue, net"')).toBe(true)
   })
+
+  it('neutralizes a formula-injection prefix in a field', () => {
+    const series = makeSeries()
+    series.history[0].period = '=1+1'
+    const lines = seriesToCsv(series).split('\r\n')
+    // period is the 4th column; the leading "=" is defused with a quote prefix
+    // so a spreadsheet does not evaluate the cell as a formula.
+    expect(lines[1].split(',')[3]).toBe("'=1+1")
+  })
 })
 
 describe('csvFileName', () => {

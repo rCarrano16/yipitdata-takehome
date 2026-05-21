@@ -15,7 +15,7 @@ flowchart TD
   end
   Browser -->|loads| SPA["React + TypeScript SPA<br/>frontend/"]
   SPA -->|HTTP / JSON| REST["FastAPI REST routers<br/>backend/app/routers"]
-  Agent -->|MCP / stdio| MCP["FastMCP server<br/>mcp/server.py (5 read-only tools)"]
+  Agent -->|MCP / stdio| MCP["FastMCP server<br/>mcp/server.py (6 read-only tools)"]
   REST --> SVC["Shared service layer<br/>backend/app/service.py"]
   MCP --> SVC
   SVC --> ORM["SQLAlchemy 2.0 models<br/>backend/app/models.py"]
@@ -28,7 +28,7 @@ The system has **two entry points over one shared core**:
   are thin, they validate input with Pydantic, call one service function, and
   let exception handlers map domain errors to HTTP status codes.
 - **MCP server** (`mcp/server.py`): a FastMCP server exposes the same data as
-  five read-only tools for AI agents, over the Model Context Protocol on stdio.
+  six read-only tools for AI agents, over the Model Context Protocol on stdio.
 - **Shared service layer** (`backend/app/service.py`): every KPI and QTD query
   lives here, written once. Both entry points import and call it. The MCP server
   imports the backend package in-process, so there is no second HTTP hop and no
@@ -142,5 +142,5 @@ short-lived session and calls the identical service function.
 |-----------|-----------------------------|
 | The QTD / as-of point-in-time snapshot model | The `estimates` table with an `estimate_type` discriminator and a nullable `as_of`; current QTD derived with `DISTINCT ON` and the `as_of, created_at, id` tiebreak. |
 | One shared data API for the frontend and the MCP server | `service.py`, imported in-process by both the REST routers and the MCP tools. Query logic is written exactly once. |
-| MCP tools an LLM can use naturally | Five intent-shaped, read-only tools with LLM-facing docstrings, typed Pydantic return models (so FastMCP publishes an output schema), and truthful read-only annotations. |
+| MCP tools an LLM can use naturally | Six intent-shaped, read-only tools with LLM-facing docstrings, typed Pydantic return models (so FastMCP publishes an output schema), and truthful read-only annotations. |
 | Fast, glanceable reads | Targeted indexes; the overview is three constant-count queries assembled in Python, with no N+1 (a query-counting test proves it); the frontend code-splits the chart library and uses hand-rolled SVG sparklines. |

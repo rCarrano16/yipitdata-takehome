@@ -22,19 +22,26 @@ const COLUMNS = [
 ] as const
 
 /**
- * Quote a field per RFC 4180: wrap it in double quotes when it contains a
- * comma, a quote, or a line break, and double any embedded quote.
+ * Escape a field for a CSV cell.
  *
- * CSV formula injection is not guarded here on purpose: every exported field
- * is a known-safe value (numbers are non-negative, KPI names start with a
- * letter, the rest are dates and fixed codes). It is noted for the data
- * security review.
+ * First, a field that begins with =, +, -, @, a tab, or a carriage return is
+ * prefixed with a single quote. A spreadsheet (Excel, Sheets, LibreOffice)
+ * treats a cell starting with those characters as a formula on open; the
+ * prefix neutralizes that. This is defense in depth: `period` reaches the CSV
+ * from the publish endpoint, so an exported field is not guaranteed safe.
+ *
+ * Then RFC 4180 quoting: wrap the field in double quotes when it contains a
+ * comma, a quote, or a line break, and double any embedded quote.
  */
 function escapeCsvField(value: string): string {
-  if (/[",\r\n]/.test(value)) {
-    return `"${value.replace(/"/g, '""')}"`
+  let field = value
+  if (/^[=+\-@\t\r]/.test(field)) {
+    field = `'${field}`
   }
-  return value
+  if (/[",\r\n]/.test(field)) {
+    return `"${field.replace(/"/g, '""')}"`
+  }
+  return field
 }
 
 function toRow(cells: (string | number)[]): string {

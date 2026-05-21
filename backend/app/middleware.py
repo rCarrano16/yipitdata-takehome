@@ -33,34 +33,50 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
         token = request_id_var.set(request_id)
         start = time.perf_counter()
         try:
-            response = await call_next(request)
-        except Exception:
-            # An unhandled error: log it as a 500 here (the outer
-            # ServerErrorMiddleware builds the actual 500 response), then
-            # re-raise so error handling is not swallowed.
-            latency_ms = round((time.perf_counter() - start) * 1000, 2)
-            logger.exception(
-                "request failed",
-                extra={
-                    "method": request.method,
-                    "path": request.url.path,
-                    "status": 500,
-                    "latency_ms": latency_ms,
-                },
-            )
-            raise
-        else:
-            latency_ms = round((time.perf_counter() - start) * 1000, 2)
-            response.headers["X-Request-ID"] = request_id
-            logger.info(
-                "request",
-                extra={
-                    "method": request.method,
-                    "path": request.url.path,
-                    "status": response.status_code,
-                    "latency_ms": latency_ms,
-                },
-            )
+            try:
+                response = await call_next(request)
+            except Exception:
+                # An unhandled error from the route or a downstream middleware.
+                self._log_failure(request, start)
+                raise
+            # call_next succeeded. Stamping the response and emitting the
+            # success line is wrapped too, so a failure here (a logging error,
+            # say) is still logged as a 500 instead of escaping unlogged.
+            try:
+                response.headers["X-Request-ID"] = request_id
+                latency_ms = round((time.perf_counter() - start) * 1000, 2)
+                logger.info(
+                    "request",
+                    extra={
+                        "method": request.method,
+                        "path": request.url.path,
+                        "status": response.status_code,
+                        "latency_ms": latency_ms,
+                    },
+                )
+            except Exception:
+                self._log_failure(request, start)
+                raise
             return response
         finally:
+            # Reset last, so every log line above still carries the request id.
             request_id_var.reset(token)
+
+    @staticmethod
+    def _log_failure(request: Request, start: float) -> None:
+        """Log an unhandled error as a 500.
+
+        Called from an except block, so logger.exception records the traceback.
+        The outer ServerErrorMiddleware builds the actual 500 response; this
+        only guarantees the failure is never missing from the log.
+        """
+        latency_ms = round((time.perf_counter() - start) * 1000, 2)
+        logger.exception(
+            "request failed",
+            extra={
+                "method": request.method,
+                "path": request.url.path,
+                "status": 500,
+                "latency_ms": latency_ms,
+            },
+        )

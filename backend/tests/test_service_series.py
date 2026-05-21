@@ -5,8 +5,10 @@ points by period_end, QTD snapshots by as_of. Both bounds are inclusive.
 """
 
 from datetime import date
+from decimal import Decimal
 
-from app.service import get_series
+from app.schemas import PublishEstimateRequest
+from app.service import get_series, publish_estimate
 
 
 def test_history_is_ordered_oldest_first(db_session):
@@ -80,3 +82,33 @@ def test_kpi_lookup_is_case_insensitive(db_session):
     # LLM (or a user) need not reproduce the exact casing of "Total Revenue ($MM)".
     series = get_series(db_session, "ACME", "total revenue ($mm)")
     assert series.kpi == "Total Revenue ($MM)"
+
+
+def test_same_period_historical_correction_resolves_to_the_newest_row(db_session):
+    """Two historical rows for one closed quarter: the newest (higher id) wins.
+
+    Publishing is append-only for historical estimates too, so a re-published
+    correction is a second row for the same period. _fetch_history deduplicates
+    with DISTINCT ON (period), mirroring the QTD snapshot dedup, so the series
+    shows one point per quarter and the corrected value is the one that surfaces.
+    Both rows are written in this one transaction, so func.now() ties their
+    created_at; only the id DESC tiebreak distinguishes them.
+    """
+    base = dict(
+        ticker="ACME",
+        kpi="Total Revenue ($MM)",
+        period="2025Q4",
+        period_start=date(2025, 10, 1),
+        period_end=date(2025, 12, 31),
+        estimate_type="historical",
+        as_of=None,
+    )
+    publish_estimate(db_session, PublishEstimateRequest(**base, value=Decimal("130")))
+    publish_estimate(db_session, PublishEstimateRequest(**base, value=Decimal("135")))
+
+    series = get_series(db_session, "ACME", "Total Revenue ($MM)")
+    periods = [p.period for p in series.history]
+    # 2025Q4 still appears exactly once despite the correction.
+    assert periods == ["2025Q2", "2025Q3", "2025Q4"]
+    q4 = next(p for p in series.history if p.period == "2025Q4")
+    assert q4.value == 135.0

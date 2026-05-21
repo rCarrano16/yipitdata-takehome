@@ -98,15 +98,15 @@ class Estimate(Base):
 # Primary access path: reads for one company, or for one (company, KPI) series.
 Index("ix_estimates_company_kpi", Estimate.company_id, Estimate.kpi_id)
 
-# Serves the "latest QTD snapshot per period" query. The as_of then created_at
-# descending order matches the DISTINCT ON resolution, including the created_at
-# tiebreak when a correction is re-published at the same as_of. Partial: it
-# indexes qtd rows only, since historical rows never take this path.
+# Supports the QTD reads. Partial: it indexes qtd rows only, since historical
+# rows never take this path. It leads with (company_id, kpi_id), the equality
+# filter both QTD queries apply, then carries as_of and created_at, the columns
+# the latest-snapshot resolution sorts on. The id tiebreak is not indexed;
+# Postgres applies it as a cheap final sort over the few rows of one series.
 Index(
     "ix_estimates_qtd_latest",
     Estimate.company_id,
     Estimate.kpi_id,
-    Estimate.period,
     Estimate.as_of.desc(),
     Estimate.created_at.desc(),
     postgresql_where=(Estimate.estimate_type == "qtd"),

@@ -1,7 +1,7 @@
 """FastMCP server: the KPI estimates data API exposed as MCP tools.
 
 This is the AI-agent channel of the application. An LLM client (Claude Desktop,
-Cursor, and similar) connects over stdio and calls these five read-only tools to
+Cursor, and similar) connects over stdio and calls these six read-only tools to
 look up companies, retrieve KPI estimates, and query quarter-to-date (QTD) data.
 
 The tools reuse the backend service layer in-process: they import `app.service`
@@ -12,10 +12,10 @@ opens its own short-lived database session via `session_scope`.
 Each tool is annotated with a Pydantic return type, so FastMCP generates a JSON
 Schema for the tool output as well as its input. That output schema is the
 formal description of the result shape, which is what lets a calling LLM
-discover what it gets back. Two tools return existing service-layer schemas
-(`CompanyDetail`, `SeriesDetail`); the other three return small wrapper models
-defined here, because the MCP protocol requires a tool output schema to be an
-object, not a bare array or scalar.
+discover what it gets back. Three tools return existing service-layer schemas
+(`CompanyDetail`, `SeriesDetail`, `CompanyEstimates`); the other three return
+small wrapper models defined here, because the MCP protocol requires a tool
+output schema to be an object, not a bare array or scalar.
 
 stdio note: with stdio transport the process stdout IS the JSON-RPC channel, so
 nothing else may be written there. This module therefore never imports
@@ -35,6 +35,7 @@ from app.db import session_scope
 from app.errors import NotFoundError
 from app.schemas import (
     CompanyDetail,
+    CompanyEstimates,
     CompanySummary,
     KpiInfo,
     QtdSnapshot,
@@ -44,12 +45,12 @@ from app.schemas import (
 # ---------------------------------------------------------------------------
 # Tool result models
 #
-# The MCP protocol requires a tool output schema to be a JSON object. Two tools
-# already return object-typed service schemas (CompanyDetail, SeriesDetail) and
-# need no wrapper. The three models below wrap results that would otherwise be a
-# bare list or an ad-hoc shape, so every tool advertises a clean, object-typed
-# output schema. They are MCP-specific (the REST API returns bare arrays for the
-# list endpoints), so they live here and not in the shared app/schemas.py.
+# The MCP protocol requires a tool output schema to be a JSON object. Three
+# tools already return object-typed service schemas (CompanyDetail, SeriesDetail,
+# CompanyEstimates) and need no wrapper. The three models below wrap results that
+# would otherwise be a bare list or an ad-hoc shape, so every tool advertises a
+# clean, object-typed output schema. They are MCP-specific (the REST API returns
+# bare arrays for the list endpoints), so they live here, not in app/schemas.py.
 # ---------------------------------------------------------------------------
 
 
@@ -90,7 +91,9 @@ mcp = FastMCP(
         "value is the snapshot with the latest `as_of`.\n\n"
         "Identifiers are resolved case-insensitively. To get valid identifiers, "
         "call `search_companies` for tickers and `list_kpis` for KPI names "
-        "before calling the estimate tools."
+        "before calling the estimate tools.\n\n"
+        "Data coverage: closed-quarter history runs 2022Q1 through 2025Q4; QTD "
+        "snapshots exist only for the current quarter, 2026Q1."
     ),
     # Mask the details of unexpected errors (for example a database error that
     # could carry a connection string). Errors raised deliberately as ToolError
@@ -108,6 +111,17 @@ _READ_ONLY_ANNOTATIONS = {
     "idempotentHint": True,
     "openWorldHint": False,
 }
+
+
+def _require_ordered_dates(date_from: date | None, date_to: date | None) -> None:
+    """Reject an inverted date range before it reaches the service layer.
+
+    A date_from later than date_to is almost certainly a caller mistake. The
+    service layer would simply return an empty result, which a calling LLM could
+    misread as "no data exists". Failing loudly with a ToolError is clearer.
+    """
+    if date_from is not None and date_to is not None and date_from > date_to:
+        raise ToolError(f"date_from ({date_from}) must not be after date_to ({date_to})")
 
 
 @mcp.tool(annotations=_READ_ONLY_ANNOTATIONS)
@@ -139,11 +153,13 @@ def list_kpis() -> KpiList:
 
 
 @mcp.tool(annotations=_READ_ONLY_ANNOTATIONS)
-def get_company_kpis(ticker: str) -> CompanyDetail:
-    """Get one company and the list of KPIs it reports.
+def get_company(ticker: str) -> CompanyDetail:
+    """Get one company profile and the list of KPIs it reports.
 
     Use this after `search_companies` to see which KPIs a company has before
-    requesting its estimates.
+    requesting its estimates. It returns the company profile and KPI list, not
+    the estimate values: use `get_company_estimates` or `get_kpi_estimates` for
+    those.
 
     Args:
         ticker: The company ticker, case-insensitive, for example "ACME".
@@ -151,6 +167,32 @@ def get_company_kpis(ticker: str) -> CompanyDetail:
     try:
         with session_scope() as session:
             return service.get_company(session, ticker)
+    except NotFoundError as e:
+        raise ToolError(str(e)) from e
+
+
+@mcp.tool(annotations=_READ_ONLY_ANNOTATIONS)
+def get_company_estimates(
+    ticker: str,
+    date_from: date | None = None,
+    date_to: date | None = None,
+) -> CompanyEstimates:
+    """Get every KPI estimate series for one company in a single call.
+
+    Returns one full series per KPI the company reports, each with its
+    closed-quarter history and its QTD snapshots. Use this for a company-wide
+    view; use `get_kpi_estimates` when you only need one specific KPI.
+
+    Args:
+        ticker: The company ticker, case-insensitive, for example "ACME".
+        date_from: Optional inclusive lower bound as an ISO date (YYYY-MM-DD).
+            History is filtered by quarter-end date, QTD snapshots by `as_of`.
+        date_to: Optional inclusive upper bound as an ISO date (YYYY-MM-DD).
+    """
+    _require_ordered_dates(date_from, date_to)
+    try:
+        with session_scope() as session:
+            return service.get_company_estimates(session, ticker, date_from, date_to)
     except NotFoundError as e:
         raise ToolError(str(e)) from e
 
@@ -176,6 +218,7 @@ def get_kpi_estimates(
             History is filtered by quarter-end date, QTD snapshots by `as_of`.
         date_to: Optional inclusive upper bound as an ISO date (YYYY-MM-DD).
     """
+    _require_ordered_dates(date_from, date_to)
     try:
         with session_scope() as session:
             return service.get_series(session, ticker, kpi, date_from, date_to)

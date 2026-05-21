@@ -5,6 +5,7 @@ from typing import Annotated
 
 from fastapi import APIRouter, Depends
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.orm import Session
 
@@ -14,7 +15,18 @@ router = APIRouter()
 logger = logging.getLogger("app.health")
 
 
-@router.get("/health")
+class HealthStatus(BaseModel):
+    """The /health response body: overall status and the database probe result.
+
+    Declared so the endpoint publishes a real OpenAPI response schema. It is an
+    operational shape, not domain data, so it lives here and not in schemas.py.
+    """
+
+    status: str
+    db: str
+
+
+@router.get("/health", response_model=HealthStatus, responses={503: {"model": HealthStatus}})
 def health(session: Annotated[Session, Depends(get_session)]) -> JSONResponse:
     """Report whether the service and its database are reachable.
 

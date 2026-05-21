@@ -124,25 +124,35 @@ class PublishEstimateRequest(BaseModel):
 
     ticker: str = Field(min_length=1, max_length=16)
     kpi: str = Field(min_length=1, max_length=64)
-    period: str = Field(min_length=1, max_length=8)
+    # period is a quarter code like "2026Q1". The pattern keeps a malformed or
+    # hostile value (a CSV-formula string, say) out of the stored data.
+    period: str = Field(pattern=r"^\d{4}Q[1-4]$")
     period_start: date
     period_end: date
     estimate_type: Literal["historical", "qtd"]
-    value: Decimal = Field(ge=0)
+    value: Decimal = Field(ge=0, max_digits=20, decimal_places=4)
     as_of: date | None = None
 
     @model_validator(mode="after")
     def _check_consistency(self) -> "PublishEstimateRequest":
-        """Enforce the period ordering and the as_of / estimate_type invariant.
+        """Enforce the period ordering and the as_of invariants.
 
-        This mirrors the database CHECK constraint: a qtd estimate is a snapshot
+        This mirrors the database CHECK constraints: a qtd estimate is a snapshot
         and must carry an as_of date; a historical estimate is a closed quarter
-        and must not.
+        and must not. A qtd as_of must also fall inside the period window: the
+        current-QTD resolution orders by as_of, so an as_of outside the quarter
+        (a far-future date in particular) would permanently win that resolution.
         """
         if self.period_end < self.period_start:
             raise ValueError("period_end must not precede period_start")
         if self.estimate_type == "qtd" and self.as_of is None:
             raise ValueError("a qtd estimate requires an as_of date")
+        if (
+            self.estimate_type == "qtd"
+            and self.as_of is not None
+            and not (self.period_start <= self.as_of <= self.period_end)
+        ):
+            raise ValueError("a qtd as_of must fall within the period window")
         if self.estimate_type == "historical" and self.as_of is not None:
             raise ValueError("a historical estimate must not carry an as_of date")
         return self

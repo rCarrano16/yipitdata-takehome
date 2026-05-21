@@ -11,6 +11,7 @@ The load is idempotent: it is skipped when estimates already holds rows, unless
 import argparse
 import csv
 import logging
+import re
 from datetime import date
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
@@ -30,6 +31,9 @@ DEFAULT_CSV_PATH = _REPO_ROOT / "data" / "kpi_sample_2000.csv"
 
 _VALID_UNITS = {"$", "$MM", "subs", "units"}
 _VALID_ESTIMATE_TYPES = {"historical", "qtd"}
+# A period is a quarter code like "2026Q1". Mirrors the PublishEstimateRequest
+# pattern, so the CSV seed and the publish endpoint accept the same shape.
+_PERIOD_PATTERN = re.compile(r"^\d{4}Q[1-4]$")
 _REQUIRED_FIELDS = (
     "company_name",
     "ticker",
@@ -60,6 +64,12 @@ def _parse_row(row: dict, line_no: int) -> dict:
     unit = row["unit"].strip()
     if unit not in _VALID_UNITS:
         raise ValueError(f"line {line_no}: invalid unit '{unit}'")
+
+    period = row["period"].strip()
+    if not _PERIOD_PATTERN.match(period):
+        raise ValueError(
+            f"line {line_no}: invalid period '{period}', expected a quarter code like 2026Q1"
+        )
 
     raw_value = row["value"].strip()
     try:
@@ -93,6 +103,13 @@ def _parse_row(row: dict, line_no: int) -> dict:
             as_of = date.fromisoformat(raw_as_of)
         except ValueError:
             raise ValueError(f"line {line_no}: invalid as_of '{raw_as_of}'") from None
+        # Mirror the PublishEstimateRequest rule: a qtd snapshot's as_of must
+        # fall inside its own quarter, so it cannot distort the QTD resolution.
+        if not (period_start <= as_of <= period_end):
+            raise ValueError(
+                f"line {line_no}: qtd as_of {as_of} is outside the period window "
+                f"[{period_start}, {period_end}]"
+            )
 
     return {
         "company_name": row["company_name"].strip(),
@@ -100,7 +117,7 @@ def _parse_row(row: dict, line_no: int) -> dict:
         "sector": row["sector"].strip(),
         "kpi": row["kpi"].strip(),
         "unit": unit,
-        "period": row["period"].strip(),
+        "period": period,
         "period_start": period_start,
         "period_end": period_end,
         "estimate_type": estimate_type,

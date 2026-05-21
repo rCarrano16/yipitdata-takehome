@@ -19,10 +19,18 @@ SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False
 
 
 def get_session() -> Generator[Session, None, None]:
-    """FastAPI dependency: yield a session and close it when the request ends."""
+    """FastAPI dependency: yield a session, rolling back on error, then closing.
+
+    The rollback is symmetric with session_scope: a request that fails must not
+    leave a half-finished transaction on the pooled connection for the next
+    request to inherit.
+    """
     session = SessionLocal()
     try:
         yield session
+    except Exception:
+        session.rollback()
+        raise
     finally:
         session.close()
 

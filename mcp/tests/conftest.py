@@ -1,6 +1,6 @@
 """Fixtures for the MCP server tests.
 
-The five MCP tools are tested in isolation from any database. Each tool's job is
+The six MCP tools are tested in isolation from any database. Each tool's job is
 the MCP-specific glue: open a session, call one backend service function, and
 shape the result (or translate a NotFoundError into a ToolError). The service
 layer's own database behavior is already covered by the backend test suite, so

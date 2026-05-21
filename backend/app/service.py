@@ -124,10 +124,15 @@ def _fetch_history(
     date_from: date | None,
     date_to: date | None,
 ) -> list[EstimatePoint]:
-    """Historical estimates for one series, oldest first.
+    """Historical estimates for one series, one row per closed quarter, oldest first.
 
-    The date range filters by `period_end`, the date the chart plots a
-    historical point at. Both bounds are inclusive.
+    DISTINCT ON (period) collapses a re-published historical correction for the
+    same closed quarter to a single row, mirroring the QTD snapshot dedup: the
+    winning row is the latest `created_at`, then the highest `id` as the
+    guaranteed-unique tiebreak. DISTINCT ON requires `period` to lead the
+    ORDER BY, so the points are sorted afterwards by `period_end`, the date the
+    chart plots a historical point at and the column the date range filters on.
+    Both date bounds are inclusive.
     """
     query = select(Estimate).where(
         Estimate.company_id == company_id,
@@ -138,8 +143,10 @@ def _fetch_history(
         query = query.where(Estimate.period_end >= date_from)
     if date_to is not None:
         query = query.where(Estimate.period_end <= date_to)
-    query = query.order_by(Estimate.period_start)
-    return [
+    query = query.distinct(Estimate.period).order_by(
+        Estimate.period, Estimate.created_at.desc(), Estimate.id.desc()
+    )
+    points = [
         EstimatePoint(
             period=r.period,
             period_start=r.period_start,
@@ -149,6 +156,8 @@ def _fetch_history(
         )
         for r in session.scalars(query).all()
     ]
+    points.sort(key=lambda p: p.period_end)
+    return points
 
 
 def _fetch_qtd_snapshots(
@@ -262,6 +271,10 @@ def get_company_estimates(
     """
     company = _get_company(session, ticker)
     kpis = _fetch_company_kpis(session, company.id)
+    # One _assemble_series call per KPI, so this is 2N+2 indexed queries (N is
+    # the KPI count, at most 5 in this dataset). Left per-series for readability:
+    # a batched two-query form is the optimization if a company ever reports
+    # many KPIs, but it buys nothing measurable at this scale.
     series = [_assemble_series(session, company, kpi, date_from, date_to) for kpi in kpis]
     return CompanyEstimates(
         ticker=company.ticker,
@@ -279,9 +292,11 @@ def get_company_estimates(
 def _fetch_latest_historical(session: Session, search: str | None) -> list[Row]:
     """The newest historical estimate per series, with company and KPI metadata.
 
-    DISTINCT ON (company_id, kpi_id) with period_end descending takes the most
-    recent closed quarter for each series in one indexed pass. The optional
-    search filters by ticker, company name, sector, or KPI name.
+    DISTINCT ON (company_id, kpi_id) takes one row per series in a single
+    indexed pass. The ORDER BY decides which row: the latest `period_end` (the
+    most recent closed quarter), then `created_at` then `id` descending to break
+    a tie when a correction has been re-published for that same quarter. The
+    optional search filters by ticker, company name, sector, or KPI name.
     """
     query = (
         select(
@@ -308,7 +323,11 @@ def _fetch_latest_historical(session: Session, search: str | None) -> list[Row]:
             | Kpi.name.ilike(term)
         )
     query = query.distinct(Estimate.company_id, Estimate.kpi_id).order_by(
-        Estimate.company_id, Estimate.kpi_id, Estimate.period_end.desc()
+        Estimate.company_id,
+        Estimate.kpi_id,
+        Estimate.period_end.desc(),
+        Estimate.created_at.desc(),
+        Estimate.id.desc(),
     )
     return list(session.execute(query).all())
 

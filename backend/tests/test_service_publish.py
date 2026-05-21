@@ -85,3 +85,33 @@ def test_period_end_before_start_is_rejected_by_the_schema():
         PublishEstimateRequest(
             **_qtd_payload(period_start=date(2026, 3, 31), period_end=date(2026, 1, 1))
         )
+
+
+def test_qtd_as_of_after_the_period_window_is_rejected_by_the_schema():
+    # A far-future as_of would otherwise permanently win the current-QTD resolution.
+    with pytest.raises(PydanticValidationError):
+        PublishEstimateRequest(**_qtd_payload(as_of=date(2026, 4, 1)))
+
+
+def test_qtd_as_of_before_the_period_window_is_rejected_by_the_schema():
+    with pytest.raises(PydanticValidationError):
+        PublishEstimateRequest(**_qtd_payload(as_of=date(2025, 12, 31)))
+
+
+def test_value_with_too_many_digits_is_rejected_by_the_schema():
+    # numeric(20, 4): more than 20 total digits cannot be stored.
+    with pytest.raises(PydanticValidationError):
+        PublishEstimateRequest(**_qtd_payload(value=Decimal("1E+20")))
+
+
+def test_value_with_too_many_decimal_places_is_rejected_by_the_schema():
+    # numeric(20, 4): at most 4 decimal places.
+    with pytest.raises(PydanticValidationError):
+        PublishEstimateRequest(**_qtd_payload(value=Decimal("1.23456")))
+
+
+def test_malformed_period_is_rejected_by_the_schema():
+    # period must be a quarter code like 2026Q1. The pattern also blocks a
+    # CSV-formula string ("=1+1") from ever reaching the stored data.
+    with pytest.raises(PydanticValidationError):
+        PublishEstimateRequest(**_qtd_payload(period="=1+1"))

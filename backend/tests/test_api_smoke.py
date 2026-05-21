@@ -22,7 +22,7 @@ def _publish_body(**overrides) -> dict:
         "period_end": "2026-03-31",
         "estimate_type": "qtd",
         "value": 99.5,
-        "as_of": "2026-04-01",
+        "as_of": "2026-03-20",
     }
     body.update(overrides)
     return body
@@ -32,6 +32,35 @@ def test_health_reports_ok(client):
     response = client.get("/health")
     assert response.status_code == 200
     assert response.json() == {"status": "ok", "db": "ok"}
+
+
+def test_health_publishes_a_response_schema(client):
+    """The /health endpoint documents its body in the OpenAPI schema.
+
+    Declaring the HealthStatus model gives the 200 response a real schema; with
+    a bare JSONResponse return type the schema would be empty.
+    """
+    openapi = client.get("/openapi.json").json()
+    ok_response = openapi["paths"]["/health"]["get"]["responses"]["200"]
+    assert "schema" in ok_response["content"]["application/json"]
+
+
+def test_health_reports_503_when_the_database_is_unreachable(client, db_session, monkeypatch):
+    """The /health 503 path: a failing database probe returns 503, not 200.
+
+    503 is the status a load balancer or uptime monitor acts on. The session's
+    execute is patched to raise, simulating an unreachable database; the route
+    must catch it and answer 503 with the error body.
+    """
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulated database failure")
+
+    monkeypatch.setattr(db_session, "execute", _boom)
+    response = client.get("/health")
+
+    assert response.status_code == 503
+    assert response.json() == {"status": "error", "db": "error"}
 
 
 def test_response_carries_request_id_header(client):
@@ -134,12 +163,18 @@ def test_publish_estimate_appends_and_becomes_current_qtd(client):
 
     # The newer as_of makes the published snapshot the current QTD on re-read.
     series = client.get("/companies/ACME/kpis/Total Revenue ($MM)").json()
-    assert series["current_qtd"]["as_of"] == "2026-04-01"
+    assert series["current_qtd"]["as_of"] == "2026-03-20"
     assert series["current_qtd"]["value"] == 99.5
 
 
 def test_publish_qtd_without_as_of_is_422(client):
     response = client.post("/estimates", json=_publish_body(as_of=None))
+    assert response.status_code == 422
+
+
+def test_publish_qtd_as_of_outside_period_window_is_422(client):
+    # as_of past period_end: the schema rejects it before it reaches the service.
+    response = client.post("/estimates", json=_publish_body(as_of="2026-04-15"))
     assert response.status_code == 422
 
 
@@ -166,6 +201,31 @@ def test_unexpected_error_returns_consistent_json_500(db_session, monkeypatch):
         # instead of re-raising the simulated error into the test.
         with TestClient(app, raise_server_exceptions=False) as raising_client:
             response = raising_client.get("/kpis")
+    finally:
+        app.dependency_overrides.clear()
+
+    assert response.status_code == 500
+    assert response.json() == {"detail": "internal server error"}
+    assert response.headers.get("X-Request-ID")
+
+
+def test_error_inside_middleware_body_returns_consistent_json_500(db_session, monkeypatch):
+    """An error raised in the logging middleware itself still yields a JSON 500.
+
+    The test above covers a failure inside call_next (the route). This covers
+    the other path: a failure in the middleware's own body, after call_next has
+    returned. The catch-all handler must shape it the same way.
+    """
+
+    def _boom(*args, **kwargs):
+        raise RuntimeError("simulated middleware failure")
+
+    # logger.info runs in the middleware body once call_next has succeeded.
+    monkeypatch.setattr("app.middleware.logger.info", _boom)
+    app.dependency_overrides[get_session] = lambda: db_session
+    try:
+        with TestClient(app, raise_server_exceptions=False) as raising_client:
+            response = raising_client.get("/health")
     finally:
         app.dependency_overrides.clear()
 
