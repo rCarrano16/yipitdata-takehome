@@ -1,17 +1,47 @@
 /* Plain CSS for the whole app. One stylesheet, simple descriptive class
-   names, no preprocessor and no CSS-in-JS. */
+   names, no preprocessor and no CSS-in-JS.
+
+   Color and typography follow docs/design-system.md. Every color resolves to
+   a token defined in :root below; no raw hex lives outside this block. */
 
 :root {
-  --bg: #f5f6f8;
+  /* Chrome (application header) */
+  --chrome: #0d4753;
+  --chrome-ink: #ffffff;
+  --chrome-ink-muted: #abd0d9;
+  --chrome-rule: rgba(255, 255, 255, 0.14);
+
+  /* Surfaces and neutrals */
+  --canvas: #f2f5f6;
   --surface: #ffffff;
-  --border: #e3e6eb;
-  --text: #1a1d23;
-  --text-muted: #6b7280;
-  --accent: #2563eb; /* historical series */
-  --qtd: #d97706; /* QTD series, deliberately distinct from the accent */
-  --danger: #dc2626;
-  --radius: 8px;
-  --shadow: 0 1px 2px rgba(16, 24, 40, 0.06);
+  --surface-sunken: #eceff1;
+  --rule: #dde5e7;
+  --ink: #16242a;
+  --ink-muted: #616767;
+  --ink-subtle: #9aa3a5;
+
+  /* Interactive and accent */
+  --link: #0d4753;
+  --accent: #197f9f;
+  --accent-hover: #0d4753;
+  --accent-soft: #d1e5ec;
+  --accent-soft-hover: #a3ccd9;
+
+  /* Data series */
+  --series-history: #197f9f;
+  --series-qtd: #f48c5c;
+
+  /* Semantic */
+  --positive: #4caf50;
+  --negative: #ed5c6d;
+  --warning: #f7bb49;
+
+  /* Elevation: the only shadow in the product, for floating layers only */
+  --shadow-overlay: 0 8px 24px rgba(13, 71, 83, 0.12);
+
+  /* Shape */
+  --radius: 6px;
+  --radius-pill: 999px;
 }
 
 * {
@@ -26,16 +56,15 @@ body,
 }
 
 body {
-  background: var(--bg);
-  color: var(--text);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica,
-    Arial, sans-serif;
+  background: var(--canvas);
+  color: var(--ink);
+  font-family: "Roboto", sans-serif;
   font-size: 14px;
   line-height: 1.5;
 }
 
 a {
-  color: var(--accent);
+  color: var(--link);
   text-decoration: none;
 }
 
@@ -48,6 +77,19 @@ button {
   cursor: pointer;
 }
 
+/* Visible focus on every interactive element (design-system section 6). */
+a:focus-visible,
+button:focus-visible,
+select:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+input:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -1px;
+}
+
 .container {
   max-width: 1180px;
   margin: 0 auto;
@@ -55,7 +97,7 @@ button {
 }
 
 .muted {
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 /* --- Layout shell --- */
@@ -65,7 +107,7 @@ button {
   top: 0;
   z-index: 20;
   background: var(--surface);
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
 }
 
 .app-header-inner {
@@ -79,7 +121,7 @@ button {
 .app-title {
   font-size: 17px;
   font-weight: 700;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .app-title:hover {
@@ -93,19 +135,20 @@ button {
 /* --- Generic page bits --- */
 
 .page-title {
-  font-size: 22px;
-  font-weight: 700;
+  font-size: 24px;
+  font-weight: 500;
+  line-height: 1.25;
   margin-bottom: 4px;
 }
 
 .page-subtitle {
-  color: var(--text-muted);
-  margin-bottom: 20px;
+  color: var(--ink-muted);
+  margin-bottom: 24px;
 }
 
 .back-link {
   display: inline-block;
-  margin-bottom: 14px;
+  margin-bottom: 16px;
   font-size: 13px;
 }
 
@@ -114,11 +157,11 @@ button {
 .state {
   text-align: center;
   padding: 56px 20px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .state-error {
-  color: var(--danger);
+  color: var(--negative);
 }
 
 .state button {
@@ -129,17 +172,17 @@ button {
 
 .btn {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 7px 14px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  padding: 6px 12px;
   font-size: 13px;
-  font-weight: 600;
-  color: var(--text);
+  font-weight: 500;
+  color: var(--ink);
 }
 
 .btn:hover {
   border-color: var(--accent);
-  color: var(--accent);
+  color: var(--link);
 }
 
 .btn:disabled {
@@ -148,8 +191,8 @@ button {
 }
 
 .btn:disabled:hover {
-  border-color: var(--border);
-  color: var(--text);
+  border-color: var(--rule);
+  color: var(--ink);
 }
 
 /* --- Overview --- */
@@ -164,13 +207,12 @@ button {
 .filter-chip {
   display: inline-flex;
   align-items: center;
-  background: #eef2ff;
-  border: 1px solid #c7d2fe;
-  color: #3730a3;
-  border-radius: 999px;
+  background: var(--accent-soft);
+  color: var(--link);
+  border-radius: var(--radius-pill);
   padding: 4px 12px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .company-section {
@@ -183,7 +225,7 @@ button {
   gap: 10px;
   padding-bottom: 8px;
   margin-bottom: 12px;
-  border-bottom: 1px solid var(--border);
+  border-bottom: 1px solid var(--rule);
 }
 
 .company-section-name {
@@ -193,7 +235,7 @@ button {
 
 .company-section-meta {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .card-grid {
@@ -207,11 +249,10 @@ button {
 .card {
   display: block;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
   padding: 14px;
-  color: var(--text);
+  color: var(--ink);
 }
 
 .card:hover {
@@ -222,7 +263,7 @@ button {
 .card-kpi {
   font-size: 13px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--ink-muted);
   margin-bottom: 6px;
 }
 
@@ -234,7 +275,7 @@ button {
 
 .card-period {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
   margin-bottom: 10px;
 }
 
@@ -246,7 +287,7 @@ button {
   display: flex;
   align-items: baseline;
   justify-content: space-between;
-  border-top: 1px solid var(--border);
+  border-top: 1px solid var(--rule);
   padding-top: 8px;
   margin-top: 4px;
 }
@@ -254,7 +295,7 @@ button {
 .card-qtd-value {
   font-size: 14px;
   font-weight: 700;
-  color: var(--qtd);
+  color: var(--series-qtd);
 }
 
 .card .badge {
@@ -266,11 +307,11 @@ button {
 .badge {
   display: inline-block;
   font-size: 11px;
-  font-weight: 600;
-  color: var(--text-muted);
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 999px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  background: var(--canvas);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius-pill);
   padding: 1px 8px;
 }
 
@@ -284,7 +325,7 @@ button {
 
 .sparkline polyline {
   fill: none;
-  stroke: var(--accent);
+  stroke: var(--series-history);
   stroke-width: 1.5;
 }
 
@@ -318,14 +359,15 @@ button {
 .date-field label {
   font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .date-field input {
   font: inherit;
   padding: 6px 8px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  background: var(--surface);
 }
 
 .timestamps {
@@ -337,19 +379,18 @@ button {
 
 .timestamp {
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .timestamp strong {
-  color: var(--text);
+  color: var(--ink);
   font-weight: 600;
 }
 
 .chart-card {
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
-  box-shadow: var(--shadow);
   padding: 16px;
 }
 
@@ -361,20 +402,20 @@ button {
 .chart-empty {
   text-align: center;
   padding: 64px 20px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .chart-tooltip {
   background: var(--surface);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  box-shadow: var(--shadow);
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow-overlay);
   padding: 8px 10px;
   font-size: 12px;
 }
 
 .chart-tooltip-label {
-  font-weight: 700;
+  font-weight: 500;
   margin-bottom: 2px;
 }
 
@@ -383,7 +424,7 @@ button {
   gap: 16px;
   margin-top: 10px;
   font-size: 12px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
 }
 
 .legend-item {
@@ -410,14 +451,8 @@ button {
   width: 100%;
   font: inherit;
   padding: 8px 12px;
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  background: var(--bg);
-}
-
-.search-input:focus {
-  outline: 2px solid var(--accent);
-  outline-offset: -1px;
+  border: 1px solid var(--rule);
+  border-radius: var(--radius);
   background: var(--surface);
 }
 
@@ -427,9 +462,9 @@ button {
   left: 0;
   right: 0;
   background: var(--surface);
-  border: 1px solid var(--border);
+  border: 1px solid var(--rule);
   border-radius: var(--radius);
-  box-shadow: 0 8px 24px rgba(16, 24, 40, 0.12);
+  box-shadow: var(--shadow-overlay);
   max-height: 60vh;
   overflow-y: auto;
   z-index: 30;
@@ -440,7 +475,7 @@ button {
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: var(--text-muted);
+  color: var(--ink-muted);
   padding: 8px 12px 4px;
 }
 
@@ -451,23 +486,23 @@ button {
   background: none;
   border: none;
   padding: 7px 12px;
-  color: var(--text);
+  color: var(--ink);
   font-size: 13px;
 }
 
 .search-result:hover,
 .search-result.is-active {
-  background: var(--bg);
+  background: var(--surface-sunken);
 }
 
 .search-result-meta {
-  color: var(--text-muted);
+  color: var(--ink-muted);
   font-size: 12px;
 }
 
 .search-empty {
   padding: 12px;
-  color: var(--text-muted);
+  color: var(--ink-muted);
   font-size: 13px;
 }
 
