@@ -31,6 +31,11 @@ services:
       DATABASE_URL: postgresql+psycopg://kpi:kpi@db:5432/kpi
       LOG_LEVEL: INFO
       FRONTEND_ORIGIN: http://localhost:5173
+    volumes:
+      # The seed CSV lives at the repo root, outside the backend build context,
+      # so it cannot be COPYd into the image. Bind mount it read-only instead;
+      # the Dockerfile CMD points the seed at /data/kpi_sample_2000.csv.
+      - ./data:/data:ro
     ports:
       - "8000:8000"
 

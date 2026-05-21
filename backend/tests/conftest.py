@@ -11,16 +11,20 @@ back at teardown, so a test never sees another test's writes and every test
 starts from the identical seeded baseline.
 """
 
+from collections.abc import Iterator
 from datetime import date
 from decimal import Decimal
 from types import SimpleNamespace
 
 import pytest
+from fastapi.testclient import TestClient
 from sqlalchemy import create_engine, event, text
 from sqlalchemy.engine import Engine, make_url
 from sqlalchemy.orm import Session
 
 from app.config import settings
+from app.db import get_session
+from app.main import app
 from app.models import Base, Company, Estimate, Kpi
 
 
@@ -168,10 +172,20 @@ def db_session(test_engine: Engine) -> Session:
     the seeded baseline is identical at the start of every test. autoflush is
     off to match the production SessionLocal, so tests that insert and then
     query must flush explicitly, exactly as production code does.
+
+    join_transaction_mode="create_savepoint" makes the session work inside a
+    SAVEPOINT: an application-level commit (the POST /estimates route does one)
+    only releases that savepoint, so the outer transaction below still rolls
+    back at teardown and API tests stay isolated.
     """
     connection = test_engine.connect()
     transaction = connection.begin()
-    session = Session(bind=connection, autoflush=False, expire_on_commit=False)
+    session = Session(
+        bind=connection,
+        autoflush=False,
+        expire_on_commit=False,
+        join_transaction_mode="create_savepoint",
+    )
     try:
         yield session
     finally:
@@ -181,16 +195,43 @@ def db_session(test_engine: Engine) -> Session:
 
 
 @pytest.fixture
+def client(db_session: Session) -> TestClient:
+    """A TestClient whose routes use the test-bound session.
+
+    get_session is overridden so the API runs against kpi_test and shares this
+    test's rolled-back transaction: nothing a request writes survives the test.
+    """
+
+    def _use_test_session() -> Iterator[Session]:
+        yield db_session
+
+    app.dependency_overrides[get_session] = _use_test_session
+    try:
+        with TestClient(app) as test_client:
+            yield test_client
+    finally:
+        app.dependency_overrides.clear()
+
+
+@pytest.fixture
 def query_counter(test_engine: Engine) -> SimpleNamespace:
-    """Count SQL statements executed on the test engine.
+    """Count application SQL statements executed on the test engine.
 
     Used to prove an endpoint runs a constant number of queries rather than one
     per row (an N+1). A test resets `.count` to zero immediately before the call
     it wants to measure, then asserts on the count afterwards.
+
+    SAVEPOINT statements are excluded: the per-test session runs inside a
+    savepoint (see db_session), so those are test-harness transaction control,
+    not application queries, and counting them would make the N+1 check depend
+    on the fixture instead of on the code under test.
     """
     counter = SimpleNamespace(count=0)
+    txn_control = ("SAVEPOINT", "RELEASE SAVEPOINT", "ROLLBACK TO SAVEPOINT")
 
     def _on_execute(conn, cursor, statement, parameters, context, executemany):
+        if statement.lstrip().upper().startswith(txn_control):
+            return
         counter.count += 1
 
     event.listen(test_engine, "before_cursor_execute", _on_execute)
