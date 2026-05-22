@@ -301,7 +301,34 @@ surfaces to the user (in Claude Desktop, as selectable starters):
 - **`earnings_preview`** drafts a pre-earnings briefing for one company.
 - **`peer_scan`** compares one KPI across a sector or a peer group.
 
-Ask, for example: "What is the current QTD revenue estimate for ACME?"
+### Example interactions
+
+Once the server is connected, ask in plain language: the model reads each tool's
+description and picks the one that fits. The questions below each exercise a
+specific tool and together cover the full tool surface.
+
+| Ask the AI client | Tool it calls |
+|-------------------|---------------|
+| "Which KPIs are available, and in what units?" | `list_kpis` |
+| "Find companies in the Cloud sector" | `search_companies` |
+| "Show ACME's profile and the KPIs it reports" | `get_company` |
+| "What is the current QTD revenue estimate for ACME?" | `get_current_qtd` |
+| "Give me ACME's full revenue history and every QTD snapshot" | `get_kpi_estimates` |
+| "Show ACME's revenue snapshots from February 2026 only" | `get_kpi_estimates` with `date_from` / `date_to` |
+| "Pull every KPI series for ACME in one call" | `get_company_estimates` |
+| "Compare Total Revenue ($MM) across the Cloud sector companies" | `compare_kpi_across_companies` |
+
+The two prompts chain several tools into a ready-made analyst workflow. In Claude
+Desktop they appear in the `+` menu, grouped under `kpi-estimates`:
+
+| Prompt | Parameters | What it produces |
+|--------|------------|------------------|
+| `earnings_preview` | `ticker` | A pre-earnings briefing: chains `get_company` and `get_company_estimates`, then reports each KPI's latest closed-quarter value, current QTD, and QoQ / YoY trend. |
+| `peer_scan` | `kpi`, `sector` (optional) | A ranked peer comparison: chains `search_companies` and `compare_kpi_across_companies` into a comparative table with a one-line takeaway. |
+
+Identifiers resolve case-insensitively. The server `instructions` also tell the
+model to call `search_companies` and `list_kpis` first when it needs an exact
+ticker or KPI name, so a vague request still resolves to real data.
 
 ### Testing the server directly
 
