@@ -7,23 +7,26 @@ name = "kpi-backend"
 version = "0.1.0"
 description = "FastAPI backend and shared service layer for the KPI estimates portal."
 requires-python = ">=3.12"
+# Pinned to exact versions so a fresh `pip install -e ./backend -e ./mcp`
+# reproduces the tested dependency set.
 dependencies = [
-    "fastapi>=0.110",
-    "uvicorn[standard]>=0.27",
-    "sqlalchemy>=2.0",
-    "psycopg[binary]>=3.1",
-    "pydantic>=2.6",
-    "pydantic-settings>=2.1",
-    "prometheus-fastapi-instrumentator>=7,<8",
-    "prometheus-client>=0.20",
+    "fastapi==0.136.1",
+    "uvicorn[standard]==0.47.0",
+    "sqlalchemy==2.0.49",
+    "psycopg[binary]==3.3.4",
+    "pydantic==2.13.4",
+    "pydantic-settings==2.14.1",
+    "prometheus-fastapi-instrumentator==7.1.0",
+    "prometheus-client==0.25.0",
 ]
 
 [project.optional-dependencies]
-# Test and lint tooling, kept out of the runtime dependency set and the Docker image.
+# Test and lint tooling, kept out of the runtime dependency set and the Docker
+# image. Pinned exactly, for the same reproducibility reason as the runtime set.
 dev = [
-    "ruff>=0.3",
-    "pytest>=8.0",
-    "httpx>=0.27",
+    "ruff==0.15.13",
+    "pytest==9.0.3",
+    "httpx==0.28.1",
 ]
 
 [tool.setuptools]

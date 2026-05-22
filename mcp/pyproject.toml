@@ -8,18 +8,21 @@ version = "0.1.0"
 description = "FastMCP server exposing the KPI estimates data API as MCP tools."
 requires-python = ">=3.12"
 dependencies = [
-    "fastmcp>=3.3,<4",
+    # Pinned exactly so a fresh install reproduces the tested version.
+    "fastmcp==3.3.1",
     # kpi-backend is the local backend package. It is installed editable from
     # ../backend in the same `pip install -e ./backend -e ./mcp` command, so this
-    # dependency resolves locally and is never fetched from PyPI.
+    # dependency resolves locally and is never fetched from PyPI. It carries no
+    # PyPI version, so it is referenced by name only.
     "kpi-backend",
 ]
 
 [project.optional-dependencies]
-# Test and lint tooling, kept out of the runtime dependency set.
+# Test and lint tooling, kept out of the runtime dependency set. Pinned exactly,
+# for the same reproducibility reason as the runtime set.
 dev = [
-    "ruff>=0.3",
-    "pytest>=8.0",
+    "ruff==0.15.13",
+    "pytest==9.0.3",
 ]
 
 [tool.setuptools]
