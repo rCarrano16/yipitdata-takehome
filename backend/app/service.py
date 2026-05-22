@@ -15,7 +15,7 @@ import logging
 from collections import defaultdict
 from datetime import date, datetime
 
-from sqlalchemy import Row, func, select
+from sqlalchemy import ColumnElement, Row, func, select
 from sqlalchemy.orm import Session
 
 from app.analytics import compute_analytics
@@ -302,6 +302,23 @@ def get_company_estimates(
 # ---------------------------------------------------------------------------
 
 
+def _overview_search_predicate(search: str) -> ColumnElement[bool]:
+    """The overview search filter: a case-insensitive match on ticker, company
+    name, sector, or KPI name.
+
+    Returns a SQLAlchemy boolean expression for a query already joined to
+    Company and Kpi. All three overview fetches use it, so they always match on
+    the same four columns and a filtered overview narrows every fetch alike.
+    """
+    term = f"%{search.strip()}%"
+    return (
+        Company.ticker.ilike(term)
+        | Company.name.ilike(term)
+        | Company.sector.ilike(term)
+        | Kpi.name.ilike(term)
+    )
+
+
 def _fetch_latest_historical(session: Session, search: str | None) -> list[Row]:
     """The newest historical estimate per series, with company and KPI metadata.
 
@@ -328,13 +345,7 @@ def _fetch_latest_historical(session: Session, search: str | None) -> list[Row]:
         .where(Estimate.estimate_type == "historical")
     )
     if search:
-        term = f"%{search.strip()}%"
-        query = query.where(
-            Company.ticker.ilike(term)
-            | Company.name.ilike(term)
-            | Company.sector.ilike(term)
-            | Kpi.name.ilike(term)
-        )
+        query = query.where(_overview_search_predicate(search))
     query = query.distinct(Estimate.company_id, Estimate.kpi_id).order_by(
         Estimate.company_id,
         Estimate.kpi_id,
@@ -345,39 +356,53 @@ def _fetch_latest_historical(session: Session, search: str | None) -> list[Row]:
     return list(session.execute(query).all())
 
 
-def _fetch_current_qtd_by_series(session: Session) -> dict[tuple[int, int], Estimate]:
+def _fetch_current_qtd_by_series(
+    session: Session, search: str | None = None
+) -> dict[tuple[int, int], Estimate]:
     """The current QTD estimate per series, keyed by (company_id, kpi_id).
 
     DISTINCT ON (company_id, kpi_id) with as_of, created_at, id all descending
     takes the latest snapshot per series, resolving same-as_of corrections by
-    the created_at then id tiebreak.
+    the created_at then id tiebreak. The optional search narrows the result to
+    the matching series, so a filtered overview does not fetch every series.
     """
-    query = (
-        select(Estimate)
-        .where(Estimate.estimate_type == "qtd")
-        .distinct(Estimate.company_id, Estimate.kpi_id)
-        .order_by(
-            Estimate.company_id,
-            Estimate.kpi_id,
-            Estimate.as_of.desc(),
-            Estimate.created_at.desc(),
-            Estimate.id.desc(),
+    query = select(Estimate).where(Estimate.estimate_type == "qtd")
+    if search:
+        query = (
+            query.join(Company, Company.id == Estimate.company_id)
+            .join(Kpi, Kpi.id == Estimate.kpi_id)
+            .where(_overview_search_predicate(search))
         )
+    query = query.distinct(Estimate.company_id, Estimate.kpi_id).order_by(
+        Estimate.company_id,
+        Estimate.kpi_id,
+        Estimate.as_of.desc(),
+        Estimate.created_at.desc(),
+        Estimate.id.desc(),
     )
     return {(r.company_id, r.kpi_id): r for r in session.scalars(query).all()}
 
 
-def _fetch_sparklines(session: Session) -> dict[tuple[int, int], list[float]]:
+def _fetch_sparklines(
+    session: Session, search: str | None = None
+) -> dict[tuple[int, int], list[float]]:
     """The recent historical values per series, for the overview sparklines.
 
     One query fetches all historical values oldest first; Python groups them by
-    series and keeps the most recent few of each.
+    series and keeps the most recent few of each. The optional search narrows
+    the query to the matching series, so a filtered overview does not fetch
+    every series' history.
     """
-    query = (
-        select(Estimate.company_id, Estimate.kpi_id, Estimate.value)
-        .where(Estimate.estimate_type == "historical")
-        .order_by(Estimate.company_id, Estimate.kpi_id, Estimate.period_start)
+    query = select(Estimate.company_id, Estimate.kpi_id, Estimate.value).where(
+        Estimate.estimate_type == "historical"
     )
+    if search:
+        query = (
+            query.join(Company, Company.id == Estimate.company_id)
+            .join(Kpi, Kpi.id == Estimate.kpi_id)
+            .where(_overview_search_predicate(search))
+        )
+    query = query.order_by(Estimate.company_id, Estimate.kpi_id, Estimate.period_start)
     grouped: dict[tuple[int, int], list[float]] = defaultdict(list)
     for company_id, kpi_id, value in session.execute(query):
         grouped[(company_id, kpi_id)].append(float(value))
@@ -394,11 +419,13 @@ def get_overview(session: Session, search: str | None = None) -> OverviewRespons
     This runs a constant three queries regardless of how many series exist: the
     latest historical estimate per series, the current QTD per series, and the
     historical values feeding the sparklines. There is no per-series query, so
-    no N+1. The three result sets are joined in Python on (company_id, kpi_id).
+    no N+1. When a search is given it is applied to all three queries, so a
+    filtered overview fetches only the series it will show. The three result
+    sets are joined in Python on (company_id, kpi_id).
     """
     latest_historical = _fetch_latest_historical(session, search)
-    current_qtd = _fetch_current_qtd_by_series(session)
-    sparklines = _fetch_sparklines(session)
+    current_qtd = _fetch_current_qtd_by_series(session, search)
+    sparklines = _fetch_sparklines(session, search)
 
     cards: list[OverviewCard] = []
     for row in latest_historical:

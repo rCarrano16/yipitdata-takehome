@@ -9,7 +9,15 @@ from datetime import date
 import pytest
 
 from app.errors import NotFoundError
-from app.service import compare_kpi, get_company, get_overview, list_companies, list_kpis
+from app.service import (
+    _fetch_current_qtd_by_series,
+    _fetch_sparklines,
+    compare_kpi,
+    get_company,
+    get_overview,
+    list_companies,
+    list_kpis,
+)
 
 
 def test_list_companies_returns_all(db_session):
@@ -82,6 +90,30 @@ def test_overview_card_without_qtd_has_null_qtd_fields(db_session):
 def test_overview_search_filters_cards(db_session):
     overview = get_overview(db_session, search="retail")
     assert {c.ticker for c in overview.cards} == {"BETA"}
+
+
+def test_overview_search_keeps_qtd_and_sparkline_for_surviving_cards(db_session):
+    """The narrowed QTD and sparkline fetches still resolve correctly: a card
+    that survives the filter carries its current QTD and its sparkline."""
+    overview = get_overview(db_session, search="retail")
+    card = next(c for c in overview.cards if c.ticker == "BETA")
+    assert card.current_qtd_value == 70.0
+    assert card.current_qtd_as_of == date(2026, 3, 15)
+    assert card.sparkline == [200.0, 210.0]
+
+
+def test_overview_search_narrows_the_qtd_and_sparkline_fetches(db_session):
+    """A filtered overview must not over-fetch.
+
+    get_overview's output is identical whether or not the QTD and sparkline
+    fetches honor the search (unmatched entries would simply go unused), so the
+    narrowing is asserted directly on the two fetch helpers: with a search they
+    return only the matching series, not every series.
+    """
+    assert len(_fetch_current_qtd_by_series(db_session)) == 2
+    assert len(_fetch_current_qtd_by_series(db_session, search="retail")) == 1
+    assert len(_fetch_sparklines(db_session)) == 4
+    assert len(_fetch_sparklines(db_session, search="retail")) == 1
 
 
 def test_overview_runs_a_constant_number_of_queries(db_session, query_counter):
