@@ -10,27 +10,40 @@ import PeriodFilter from '../components/PeriodFilter'
 import TimestampBadge from '../components/TimestampBadge'
 import { useApi } from '../hooks/useApi'
 import { computePresetRange } from '../lib/periodPresets'
-import type { Preset } from '../lib/periodPresets'
+import type { FilterMode } from '../lib/periodPresets'
+import { AVAILABLE_QUARTERS, quarterRangeToDates } from '../lib/quarters'
+import type { QuarterRange } from '../lib/quarters'
 
 /**
  * The drill-down: the two-panel history and QTD chart for one (company, KPI)
- * series, with a period-preset filter, the two timestamps, and CSV export.
+ * series, with a period filter (presets or a custom quarter range), the two
+ * timestamps, and CSV export.
  *
- * The period filter is applied server-side: picking a preset re-fetches the
- * series for that date range, so the chart, the timestamps, and the export all
- * read one consistent filtered payload. While a re-fetch is in flight `useApi`
+ * The period filter is applied server-side: changing it re-fetches the series
+ * for that date range, so the chart, the timestamps, and the export all read
+ * one consistent filtered payload. While a re-fetch is in flight `useApi`
  * keeps the previous data, so the chart stays on screen (dimmed) instead of
  * flashing a spinner. If a re-fetch fails, the last good data stays up under a
  * non-blocking error banner rather than replacing the whole page.
  */
 export default function SeriesPage() {
   const { ticker = '', kpi = '' } = useParams()
-  const [preset, setPreset] = useState<Preset>('all')
-  // Capture "now" once. The preset range, and the useApi deps derived from it,
-  // must stay stable across renders so an unrelated render cannot trigger a
-  // spurious refetch; only changing the preset should.
+  const [mode, setMode] = useState<FilterMode>('all')
+  // The custom range defaults to the full dataset window; the user narrows it
+  // from there, so switching to "Custom" shows everything until changed.
+  const [customRange, setCustomRange] = useState<QuarterRange>(() => ({
+    from: AVAILABLE_QUARTERS[0],
+    to: AVAILABLE_QUARTERS[AVAILABLE_QUARTERS.length - 1],
+  }))
+  // Capture "now" once. The resolved date range, and the useApi deps derived
+  // from it, must stay stable across renders so an unrelated render cannot
+  // trigger a spurious refetch; only changing the mode or the custom range
+  // should.
   const [now] = useState(() => new Date())
-  const { from, to } = computePresetRange(preset, now)
+  const { from, to } =
+    mode === 'custom'
+      ? quarterRangeToDates(customRange)
+      : computePresetRange(mode, now)
 
   const { data, loading, error, reload } = useApi(
     () => getSeries(ticker, kpi, from || undefined, to || undefined),
@@ -72,13 +85,18 @@ export default function SeriesPage() {
         <AnalyticsRow analytics={data.analytics} />
       )}
 
-      <PeriodFilter selected={preset} onSelect={setPreset} />
+      <PeriodFilter
+        selected={mode}
+        onSelect={setMode}
+        customRange={customRange}
+        onCustomRangeChange={setCustomRange}
+      />
 
       <div className="series-toolbar">
         <TimestampBadge
           lastUpdated={data.last_updated}
           qtdAsOf={data.current_qtd ? data.current_qtd.as_of : null}
-          filtered={preset !== 'all'}
+          filtered={mode !== 'all'}
         />
         <ExportButton series={data} disabled={isEmpty} />
       </div>

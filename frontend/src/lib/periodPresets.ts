@@ -1,20 +1,27 @@
 /**
- * Fiscal-period presets for the detail chart's time filter.
+ * Time-window modes for the detail chart's date filter.
  *
- * Each preset resolves to a `{ from, to }` ISO date pair that drives the
- * existing server-side date filter on the series fetch. "All" is the default
- * and applies no filter (the full available range).
+ * Four of them are presets that resolve to a `{ from, to }` ISO date pair
+ * relative to "now" (`computePresetRange`); the fifth, `custom`, lets the user
+ * pick an explicit quarter range, resolved instead by `quarterRangeToDates`
+ * in `quarters.ts`. Either way the pair drives the existing server-side date
+ * filter on the series fetch. "All" is the default and applies no filter (the
+ * full available range).
  */
 
-/** A selectable time window for the detail chart. */
+/** A preset time window, resolvable to a date range relative to "now". */
 export type Preset = 'all' | '3y' | '2y' | '1y'
 
-/** The presets in display order, used to render the segmented control. */
-export const PERIOD_PRESETS: { value: Preset; label: string }[] = [
+/** Every mode the segmented control offers: the four presets plus `custom`. */
+export type FilterMode = Preset | 'custom'
+
+/** The filter modes in display order, used to render the segmented control. */
+export const FILTER_MODES: { value: FilterMode; label: string }[] = [
   { value: 'all', label: 'All' },
   { value: '3y', label: '3Y' },
   { value: '2y', label: '2Y' },
   { value: '1y', label: '1Y' },
+  { value: 'custom', label: 'Custom' },
 ]
 
 /** Format a Date as a local "YYYY-MM-DD" string (no UTC shift). */
