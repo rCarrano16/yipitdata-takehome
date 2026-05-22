@@ -1,7 +1,6 @@
 import type { SeriesDetail } from '../api/types'
 import { toHistorySeries, toQtdSeries } from '../lib/chartData'
 import { formatPeriod } from '../lib/format'
-import type { Preset } from '../lib/periodPresets'
 import HistoryChart from './HistoryChart'
 import QtdChart from './QtdChart'
 
@@ -9,8 +8,6 @@ interface KpiChartProps {
   series: SeriesDetail
   /** True while a re-fetch is in flight, so both panels dim together. */
   stale: boolean
-  /** The active period preset; each panel uses it for its empty-state copy. */
-  preset: Preset
 }
 
 /**
@@ -23,7 +20,7 @@ interface KpiChartProps {
  * sliver and the history-to-QTD step reads as a sudden drop. Each comparison
  * gets its own titled panel with its own labelled scale.
  */
-export default function KpiChart({ series, stale, preset }: KpiChartProps) {
+export default function KpiChart({ series, stale }: KpiChartProps) {
   const history = toHistorySeries(series)
   const qtd = toQtdSeries(series)
 
@@ -43,12 +40,12 @@ export default function KpiChart({ series, stale, preset }: KpiChartProps) {
       <section className="chart-panel chart-panel--history">
         <h2 className="chart-panel-title">Quarterly history</h2>
         <p className="chart-panel-scale">{historyScale}</p>
-        <HistoryChart data={history} unit={series.unit} preset={preset} />
+        <HistoryChart data={history} unit={series.unit} />
       </section>
       <section className="chart-panel chart-panel--qtd">
         <h2 className="chart-panel-title">Quarter-to-date</h2>
         <p className="chart-panel-scale">{qtdScale}</p>
-        <QtdChart data={qtd} unit={series.unit} preset={preset} />
+        <QtdChart data={qtd} unit={series.unit} />
       </section>
     </div>
   )

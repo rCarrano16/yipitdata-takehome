@@ -87,7 +87,7 @@ export default function SeriesPage() {
         </div>
       )}
 
-      <KpiChart series={data} stale={loading} preset={preset} />
+      <KpiChart series={data} stale={loading} />
     </div>
   )
 }

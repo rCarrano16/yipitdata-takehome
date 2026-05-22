@@ -24,39 +24,38 @@ import {
   formatQuarterTick,
   formatValue,
 } from '../lib/format'
-import type { Preset } from '../lib/periodPresets'
 
 interface HistoryChartProps {
   data: HistoryPoint[]
   unit: string
-  preset: Preset
 }
 
 /**
  * Panel 1 of the detail view: the closed-quarter history.
  *
- * The X axis is a continuous time scale, so the quarterly points are spaced by
+ * The X axis plots epoch milliseconds, so the quarterly points are spaced by
  * real time. The series covers only closed quarters, so it ends at the most
  * recent closed quarter; the QTD snapshots are drawn separately by `QtdChart`.
  * The latest closed quarter carries an emphasized dot and a value label.
  */
-export default function HistoryChart({
-  data,
-  unit,
-  preset,
-}: HistoryChartProps) {
+export default function HistoryChart({ data, unit }: HistoryChartProps) {
   if (data.length === 0) {
     return (
-      <div className="chart-empty">
-        {preset === 'ytd'
-          ? 'No closed quarters in 2026 yet. See quarter-to-date.'
-          : 'No closed quarters in the selected period.'}
-      </div>
+      <div className="chart-empty">No closed quarters for this series.</div>
     )
   }
 
   const lastIndex = data.length - 1
   const last = data[lastIndex]
+
+  // Thin the X-axis ticks: show every quarter when there are few, otherwise
+  // keep every `step`-th one (so the kept ticks stay evenly spaced) for at
+  // most ~7 ticks. Without explicit ticks Recharts labels all 16 quarters and
+  // the date labels collide.
+  const step = Math.ceil(data.length / 7)
+  const tickValues = data
+    .filter((_, index) => index % step === 0)
+    .map((point) => point.t)
 
   return (
     <ResponsiveContainer width="100%" height={320}>
@@ -75,9 +74,10 @@ export default function HistoryChart({
         <XAxis
           dataKey="t"
           type="number"
-          scale="time"
           domain={['dataMin', 'dataMax']}
-          tickCount={7}
+          ticks={tickValues}
+          interval={0}
+          padding={{ left: 12, right: 12 }}
           tick={AXIS_TICK}
           axisLine={false}
           tickLine={false}

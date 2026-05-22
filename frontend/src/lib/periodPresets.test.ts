@@ -10,13 +10,6 @@ describe('computePresetRange', () => {
     expect(computePresetRange('all', NOW)).toEqual({ from: '', to: '' })
   })
 
-  it('starts "ytd" on January 1 of the current year', () => {
-    expect(computePresetRange('ytd', NOW)).toEqual({
-      from: '2026-01-01',
-      to: '2026-05-21',
-    })
-  })
-
   it('starts "1y" one calendar year before now', () => {
     expect(computePresetRange('1y', NOW)).toEqual({
       from: '2025-05-21',
@@ -31,10 +24,17 @@ describe('computePresetRange', () => {
     })
   })
 
+  it('starts "3y" three calendar years before now', () => {
+    expect(computePresetRange('3y', NOW)).toEqual({
+      from: '2023-05-21',
+      to: '2026-05-21',
+    })
+  })
+
   it('zero-pads single-digit months and days', () => {
-    expect(computePresetRange('ytd', new Date(2026, 0, 5))).toEqual({
-      from: '2026-01-01',
-      to: '2026-01-05',
+    expect(computePresetRange('1y', new Date(2025, 0, 5))).toEqual({
+      from: '2024-01-05',
+      to: '2025-01-05',
     })
   })
 })

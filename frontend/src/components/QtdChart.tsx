@@ -24,12 +24,10 @@ import {
   formatMonthDay,
   formatValue,
 } from '../lib/format'
-import type { Preset } from '../lib/periodPresets'
 
 interface QtdChartProps {
   data: QtdPoint[]
   unit: string
-  preset: Preset
 }
 
 /**
@@ -42,14 +40,10 @@ interface QtdChartProps {
  * clearly. The most recent snapshot carries an emphasized dot and a value
  * label, so the current QTD figure is readable without hovering.
  */
-export default function QtdChart({ data, unit, preset }: QtdChartProps) {
+export default function QtdChart({ data, unit }: QtdChartProps) {
   if (data.length === 0) {
     return (
-      <div className="chart-empty">
-        {preset !== 'all'
-          ? 'No QTD snapshots in the selected period. QTD covers Q1 2026.'
-          : 'No QTD snapshots for this series yet.'}
-      </div>
+      <div className="chart-empty">No QTD snapshots for this series.</div>
     )
   }
 
