@@ -11,9 +11,18 @@ Public-market investors need key performance indicators (KPIs) such as revenue,
 units sold, and subscriber growth for the companies they follow, and they need
 them fast. This app gives them a **glanceable** view: a searchable company
 directory leads to a company page that summarizes that company's KPIs at a
-glance, and any KPI drills down to a detailed chart of its closed-quarter
-history and quarter-to-date snapshots. It saves investors the effort of digging
-through raw estimates.
+glance, each card carrying a **QoQ** (quarter-over-quarter) and **YoY**
+(year-over-year) trend signal so direction reads without studying a line, and
+any KPI drills down to a detailed chart of its closed-quarter history and
+quarter-to-date snapshots. It saves investors the effort of digging through raw
+estimates.
+
+The trend signals are closed-quarter percent changes (QoQ against the previous
+quarter, YoY against the same quarter last year). They are computed only from
+**historical** data: a QTD value is partial and cumulative-to-date, so a
+cross-quarter comparison of it would mislead. They are also computed from the
+full history, so they stay stable when the chart's date filter narrows the
+view.
 
 The dataset covers 20 companies across 18 sectors, 5 KPIs, and 100
 `(company, KPI)` series. Each series has two parts: a **history** of closed

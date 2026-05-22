@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getSeries } from '../api/client'
+import AnalyticsRow from '../components/AnalyticsRow'
 import ErrorState from '../components/ErrorState'
 import ExportButton from '../components/ExportButton'
 import KpiChart from '../components/KpiChart'
@@ -64,6 +65,12 @@ export default function SeriesPage() {
           {data.company_name} ({data.ticker}) &middot; measured in {data.unit}
         </p>
       </div>
+
+      {/* The trend signals come from the full history, so the row sits above
+          the period filter: narrowing the chart does not change them. */}
+      {data.analytics.latest_period && (
+        <AnalyticsRow analytics={data.analytics} />
+      )}
 
       <PeriodFilter selected={preset} onSelect={setPreset} />
 

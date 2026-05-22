@@ -118,6 +118,8 @@ outside this table.
 | `--positive` | `#4CAF50` | Chart Green | Positive status only |
 | `--negative` | `#ED5C6D` | Chart Red | Errors, destructive status |
 | `--warning` | `#F7BB49` | Chart Yellow | Caution status |
+| `--positive-soft` | `#E6F4E7` | Derived, `--positive` 14% on `--surface` | Background tint of a positive status pill |
+| `--negative-soft` | `#FCE8EB` | Derived, `--negative` 14% on `--surface` | Background tint of a negative status pill |
 
 ### Elevation
 
@@ -271,6 +273,15 @@ height ~32px. A trend cue only; never a substitute for the detail chart.
 
 Pill (`--radius-pill`), Roboto 11px/500, `--ink-muted` text, `--canvas`
 background, `1px solid var(--rule)`, padding `1px 8px`.
+
+### Trend badge
+
+A status pill for one closed-quarter trend signal (QoQ or YoY): the label in
+`--ink-muted`, the signed percent in Roboto Mono `--ink`. The tone is a soft
+semantic tint, `--positive-soft` for a rise or `--negative-soft` for a fall;
+the `+` / `-` sign carries the direction as text, so meaning never depends on
+color alone. A null signal (no comparable quarter) uses the neutral Badge
+treatment. Same pill on the summary cards and the series-page trend row.
 
 ### Filter chip
 

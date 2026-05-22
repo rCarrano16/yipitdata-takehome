@@ -47,6 +47,17 @@ export function formatValue(value: number, unit: string): string {
   return unitLabel ? `${figure} ${unitLabel}` : figure
 }
 
+/**
+ * Format a fractional change as a signed percentage, e.g. 0.0833 -> "+8.3%".
+ * A rise carries an explicit "+" so the direction reads without relying on
+ * color; a fall keeps the "-" the number already has. One decimal place, the
+ * conventional precision for a YoY/QoQ figure.
+ */
+export function formatPercent(fraction: number): string {
+  const sign = fraction > 0 ? '+' : ''
+  return `${sign}${formatNumber(fraction * 100, 1)}%`
+}
+
 /** A short value for a chart axis tick, e.g. 1_200_000 -> "1.2M". */
 export function formatCompact(value: number): string {
   return new Intl.NumberFormat('en-US', {

@@ -35,6 +35,10 @@
   --positive: #4caf50;
   --negative: #ed5c6d;
   --warning: #f7bb49;
+  /* Soft tints of the semantic colors (14% over --surface), for status pills.
+     The pill text stays --ink, so contrast clears WCAG AA on the tint. */
+  --positive-soft: #e6f4e7;
+  --negative-soft: #fce8eb;
 
   /* Elevation: the only shadow in the product, for floating layers only */
   --shadow-overlay: 0 8px 24px rgba(13, 71, 83, 0.12);
@@ -410,6 +414,15 @@ input:focus-visible {
   margin-top: 4px;
 }
 
+/* The QoQ / YoY trend pills sit between the period caption and the sparkline,
+   grouping the closed-quarter read: latest value, how it moved, recent shape. */
+.card-trend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
 .card-sparkline {
   margin: 12px 0;
 }
@@ -455,6 +468,42 @@ input:focus-visible {
   padding: 1px 8px;
 }
 
+/* --- Trend badge (closed-quarter QoQ / YoY signal) --- */
+
+/* A status pill: the label in --ink-muted, the percent in mono --ink. The tone
+   is carried by a soft semantic tint; the + / - sign carries the direction as
+   text, so meaning never depends on color alone. A transparent border keeps
+   all three tones the same box size. */
+.trend-badge {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--ink-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 1px 8px;
+}
+
+.trend-badge-value {
+  font-family: "Roboto Mono", monospace;
+  color: var(--ink);
+}
+
+.trend-badge--positive {
+  background: var(--positive-soft);
+}
+
+.trend-badge--negative {
+  background: var(--negative-soft);
+}
+
+.trend-badge--neutral {
+  background: var(--canvas);
+  border-color: var(--rule);
+}
+
 /* --- Sparkline --- */
 
 .sparkline {
@@ -473,6 +522,29 @@ input:focus-visible {
 
 .series-head {
   margin-bottom: 16px;
+}
+
+/* Closed-quarter trend row: a labelled strip of QoQ / YoY pills above the
+   period filter, since the signals are computed from the full history. */
+.analytics-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.analytics-row-label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--ink-muted);
+}
+
+.analytics-row-context {
+  font-size: 13px;
+  color: var(--ink-muted);
 }
 
 /* Period-preset filter (a segmented control), directly below the chart title

@@ -36,6 +36,7 @@ function makeSeries(): SeriesDetail {
       created_at: '2026-02-01T00:00:00Z',
     },
     last_updated: '2026-02-01T00:00:00Z',
+    analytics: { latest_period: '2025Q4', qoq: null, yoy: null },
   }
 }
 

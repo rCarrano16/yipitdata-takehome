@@ -6,6 +6,7 @@ import {
   formatValueParts,
 } from '../lib/format'
 import Sparkline from './Sparkline'
+import TrendBadge from './TrendBadge'
 
 interface SummaryCardProps {
   ticker: string
@@ -13,6 +14,8 @@ interface SummaryCardProps {
   unit: string
   latestValue: number | null
   latestPeriod: string | null
+  qoq: number | null
+  yoy: number | null
   qtdValue: number | null
   qtdAsOf: string | null
   sparkline: number[]
@@ -32,6 +35,8 @@ export default function SummaryCard({
   unit,
   latestValue,
   latestPeriod,
+  qoq,
+  yoy,
   qtdValue,
   qtdAsOf,
   sparkline,
@@ -57,6 +62,17 @@ export default function SummaryCard({
           ? `Latest closed: ${formatPeriod(latestPeriod)}`
           : 'No closed history'}
       </div>
+
+      {latestPeriod && (
+        <div className="card-trend">
+          <TrendBadge
+            label="QoQ"
+            description="Quarter over quarter"
+            value={qoq}
+          />
+          <TrendBadge label="YoY" description="Year over year" value={yoy} />
+        </div>
+      )}
 
       {sparkline.length >= 2 && (
         <div className="card-sparkline">

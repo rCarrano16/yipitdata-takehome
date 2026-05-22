@@ -3,6 +3,7 @@ import {
   formatCompact,
   formatDate,
   formatMonthDay,
+  formatPercent,
   formatPeriod,
   formatQuarterTick,
   formatValue,
@@ -57,6 +58,24 @@ describe('formatValueParts', () => {
   it('rejoins to the same string formatValue returns', () => {
     const { figure, unitLabel } = formatValueParts(1000000, 'subs')
     expect(`${figure} ${unitLabel}`).toBe(formatValue(1000000, 'subs'))
+  })
+})
+
+describe('formatPercent', () => {
+  it('formats a rise with an explicit plus sign', () => {
+    expect(formatPercent(0.0833)).toBe('+8.3%')
+  })
+
+  it('formats a fall with a minus sign', () => {
+    expect(formatPercent(-0.12)).toBe('-12.0%')
+  })
+
+  it('formats a flat change without a sign', () => {
+    expect(formatPercent(0)).toBe('0.0%')
+  })
+
+  it('rounds to one decimal place', () => {
+    expect(formatPercent(0.23306)).toBe('+23.3%')
   })
 })
 

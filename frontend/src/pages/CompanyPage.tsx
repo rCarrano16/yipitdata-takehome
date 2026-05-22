@@ -23,6 +23,8 @@ function toCardProps(series: SeriesDetail) {
     unit: series.unit,
     latestValue: latest ? latest.value : null,
     latestPeriod: latest ? latest.period : null,
+    qoq: series.analytics.qoq,
+    yoy: series.analytics.yoy,
     qtdValue: series.current_qtd ? series.current_qtd.value : null,
     qtdAsOf: series.current_qtd ? series.current_qtd.as_of : null,
     sparkline: history.slice(-SPARKLINE_POINTS).map((point) => point.value),

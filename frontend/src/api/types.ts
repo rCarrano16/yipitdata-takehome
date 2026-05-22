@@ -41,6 +41,17 @@ export interface QtdSnapshot {
   created_at: string
 }
 
+/**
+ * Closed-quarter trend signals for a series. `qoq` and `yoy` are fractional
+ * percent changes of the latest closed quarter (0.05 means +5%); each is null
+ * when its comparison quarter is absent or has a zero value.
+ */
+export interface SeriesAnalytics {
+  latest_period: string | null
+  qoq: number | null
+  yoy: number | null
+}
+
 /** The full (company, KPI) time series: closed-quarter history plus QTD snapshots. */
 export interface SeriesDetail {
   ticker: string
@@ -51,6 +62,7 @@ export interface SeriesDetail {
   qtd_snapshots: QtdSnapshot[]
   current_qtd: QtdSnapshot | null
   last_updated: string | null
+  analytics: SeriesAnalytics
 }
 
 /** Every KPI series for one company. */
