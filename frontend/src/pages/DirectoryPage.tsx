@@ -68,9 +68,14 @@ export default function DirectoryPage() {
 
   // A KPI term cannot narrow a company list (every company reports all five
   // KPIs), so a query that matches KPI names surfaces an inline scope action
-  // for each match instead, using the same substring rule.
+  // for each match instead, using the same substring rule. The KPI already in
+  // scope is excluded, since re-scoping to it would be a no-op.
   const matchedKpis =
-    q === '' ? [] : kpis.filter((item) => item.name.toLowerCase().includes(q))
+    q === ''
+      ? []
+      : kpis.filter(
+          (item) => item.name.toLowerCase().includes(q) && item.name !== kpi,
+        )
 
   function updateParam(key: string, value: string) {
     const next = new URLSearchParams(searchParams)

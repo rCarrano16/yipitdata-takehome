@@ -66,13 +66,9 @@ async function request<T>(path: string): Promise<T> {
   return (await res.json()) as T
 }
 
-function searchSuffix(search: string | undefined): string {
-  return search ? `?search=${encodeURIComponent(search)}` : ''
-}
-
-/** Companies, optionally narrowed by a ticker / name / sector search. */
-export function getCompanies(search?: string): Promise<CompanySummary[]> {
-  return request<CompanySummary[]>(`/companies${searchSuffix(search)}`)
+/** Every tracked company. The directory filters this list client-side. */
+export function getCompanies(): Promise<CompanySummary[]> {
+  return request<CompanySummary[]>('/companies')
 }
 
 /** Every KPI name and its unit. */

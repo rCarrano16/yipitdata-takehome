@@ -98,6 +98,8 @@ export default function HistoryChart({ data, unit }: HistoryChartProps) {
             if (!active || !payload || payload.length === 0) {
               return null
             }
+            // Recharts types the tooltip payload loosely; `payload[0].payload`
+            // is the original data row, which here is always a HistoryPoint.
             const point = payload[0].payload as HistoryPoint
             return (
               <div className="chart-tooltip">

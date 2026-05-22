@@ -606,6 +606,9 @@ input:focus-visible {
 
 .chart-stale {
   opacity: 0.55;
+  /* The dimmed chart is a passive placeholder during a refetch: make it inert
+     so a hover cannot show a tooltip for data about to be replaced. */
+  pointer-events: none;
   transition: opacity 0.15s ease;
 }
 
