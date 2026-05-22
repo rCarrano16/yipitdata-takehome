@@ -1,29 +1,35 @@
 import { useState } from 'react'
 import { Link, useParams } from 'react-router-dom'
 import { getSeries } from '../api/client'
-import DateRangeFilter from '../components/DateRangeFilter'
 import ErrorState from '../components/ErrorState'
 import ExportButton from '../components/ExportButton'
 import KpiChart from '../components/KpiChart'
 import LoadingState from '../components/LoadingState'
+import PeriodFilter from '../components/PeriodFilter'
 import TimestampBadge from '../components/TimestampBadge'
 import { useApi } from '../hooks/useApi'
+import { computePresetRange } from '../lib/periodPresets'
+import type { Preset } from '../lib/periodPresets'
 
 /**
- * The drill-down: the detailed history-vs-QTD chart for one (company, KPI)
- * series, with a date-range filter, the two timestamps, and CSV export.
+ * The drill-down: the two-panel history and QTD chart for one (company, KPI)
+ * series, with a period-preset filter, the two timestamps, and CSV export.
  *
- * The date filter is applied server-side: changing it re-fetches the series,
- * so the chart, the timestamps, and the export all read one consistent
- * filtered payload. While a re-fetch is in flight `useApi` keeps the previous
- * data, so the chart stays on screen (dimmed) instead of flashing a spinner.
- * If a re-fetch fails, the last good data stays up under a non-blocking error
- * banner rather than replacing the whole page with a full error state.
+ * The period filter is applied server-side: picking a preset re-fetches the
+ * series for that date range, so the chart, the timestamps, and the export all
+ * read one consistent filtered payload. While a re-fetch is in flight `useApi`
+ * keeps the previous data, so the chart stays on screen (dimmed) instead of
+ * flashing a spinner. If a re-fetch fails, the last good data stays up under a
+ * non-blocking error banner rather than replacing the whole page.
  */
 export default function SeriesPage() {
   const { ticker = '', kpi = '' } = useParams()
-  const [from, setFrom] = useState('')
-  const [to, setTo] = useState('')
+  const [preset, setPreset] = useState<Preset>('all')
+  // Capture "now" once. The preset range, and the useApi deps derived from it,
+  // must stay stable across renders so an unrelated render cannot trigger a
+  // spurious refetch; only changing the preset should.
+  const [now] = useState(() => new Date())
+  const { from, to } = computePresetRange(preset, now)
 
   const { data, loading, error, reload } = useApi(
     () => getSeries(ticker, kpi, from || undefined, to || undefined),
@@ -59,18 +65,13 @@ export default function SeriesPage() {
         </p>
       </div>
 
-      <DateRangeFilter
-        from={from}
-        to={to}
-        onFromChange={setFrom}
-        onToChange={setTo}
-      />
+      <PeriodFilter selected={preset} onSelect={setPreset} />
 
       <div className="series-toolbar">
         <TimestampBadge
           lastUpdated={data.last_updated}
           qtdAsOf={data.current_qtd ? data.current_qtd.as_of : null}
-          filtered={Boolean(from || to)}
+          filtered={preset !== 'all'}
         />
         <ExportButton series={data} disabled={isEmpty} />
       </div>
@@ -86,7 +87,7 @@ export default function SeriesPage() {
         </div>
       )}
 
-      <KpiChart series={data} stale={loading} filtered={Boolean(from || to)} />
+      <KpiChart series={data} stale={loading} preset={preset} />
     </div>
   )
 }

@@ -13,11 +13,14 @@ export const SERIES_HISTORY = '#197f9f'
 /** `--series-qtd`: the quarter-to-date snapshot line. */
 export const SERIES_QTD = '#f48c5c'
 
-/** `--rule`: chart grid lines, axis lines, and tick marks. */
+/** `--rule`: chart grid lines and the hover cursor. */
 export const CHART_RULE = '#dde5e7'
 
 /** `--ink`: the direct value label on a chart point. */
 export const LABEL_INK = '#16242a'
+
+/** `--surface`: the outline that lifts an emphasized dot off the line. */
+export const CHART_SURFACE = '#ffffff'
 
 /** `--ink-muted`: axis tick label text. */
 const AXIS_TEXT = '#616767'
@@ -28,3 +31,6 @@ export const AXIS_TICK = {
   fontFamily: '"Roboto Mono", monospace',
   fill: AXIS_TEXT,
 }
+
+/** Opacity of the area fill at the top of its vertical fade (it fades to 0). */
+export const AREA_FILL_OPACITY = 0.18
