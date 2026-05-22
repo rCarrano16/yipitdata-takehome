@@ -225,21 +225,24 @@ def _assemble_series(
     """Build a SeriesDetail from already-resolved company and KPI rows.
 
     Shared by get_series and get_company_estimates so the assembly logic is
-    written once. `current_qtd` is the latest QTD snapshot in the (possibly
-    filtered) view; the snapshots come back sorted by as_of, so it is the last.
+    written once.
 
-    Analytics (YoY/QoQ) are computed from the full closed-quarter history, never
-    the date-filtered view, so they stay stable as the user narrows the chart.
-    An unfiltered request already holds the full history; a filtered one fetches
-    it once more, so analytics always cost exactly one history query.
+    `history` and `qtd_snapshots` are the plotted arrays: they answer to the
+    date filter, so they hold exactly the points the chart draws. `current_qtd`,
+    `last_updated`, and `analytics` are series-level summary fields: they
+    describe the whole series and are always computed from the full, unfiltered
+    data, so narrowing the chart's date range never changes them. An unfiltered
+    request already holds the full data; a filtered one fetches it once more, so
+    the summary fields cost one extra history query and one extra QTD query.
     """
     history = _fetch_history(session, company.id, kpi.id, date_from, date_to)
     qtd_snapshots = _fetch_qtd_snapshots(session, company.id, kpi.id, date_from, date_to)
-    current_qtd = qtd_snapshots[-1] if qtd_snapshots else None
     if date_from is None and date_to is None:
         full_history = history
+        full_qtd = qtd_snapshots
     else:
         full_history = _fetch_history(session, company.id, kpi.id, None, None)
+        full_qtd = _fetch_qtd_snapshots(session, company.id, kpi.id, None, None)
     return SeriesDetail(
         ticker=company.ticker,
         company_name=company.name,
@@ -247,8 +250,8 @@ def _assemble_series(
         unit=kpi.unit,
         history=history,
         qtd_snapshots=qtd_snapshots,
-        current_qtd=current_qtd,
-        last_updated=_latest_created_at(history, qtd_snapshots),
+        current_qtd=full_qtd[-1] if full_qtd else None,
+        last_updated=_latest_created_at(full_history, full_qtd),
         analytics=compute_analytics(full_history),
     )
 

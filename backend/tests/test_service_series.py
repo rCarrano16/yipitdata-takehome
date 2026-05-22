@@ -58,9 +58,10 @@ def test_date_filter_keeps_qtd_by_as_of_inclusive(db_session):
     as_ofs = [s.as_of for s in series.qtd_snapshots]
     # Both bounds are inclusive.
     assert as_ofs == [date(2026, 1, 31), date(2026, 2, 15)]
-    # current_qtd is the latest as_of within the filtered view.
+    # current_qtd is a series-level summary: it stays the true latest snapshot
+    # (2026-03-15) even though the filter excludes it from qtd_snapshots.
     assert series.current_qtd is not None
-    assert series.current_qtd.as_of == date(2026, 2, 15)
+    assert series.current_qtd.as_of == date(2026, 3, 15)
 
 
 def test_date_filter_can_exclude_every_point(db_session):
@@ -71,10 +72,40 @@ def test_date_filter_can_exclude_every_point(db_session):
         date_from=date(2020, 1, 1),
         date_to=date(2020, 12, 31),
     )
+    # The plotted arrays answer to the filter, so an out-of-range window
+    # empties them.
     assert series.history == []
     assert series.qtd_snapshots == []
-    assert series.current_qtd is None
-    assert series.last_updated is None
+    # current_qtd and last_updated are series-level summary fields: they
+    # describe the whole series, so an empty filtered view does not blank them.
+    assert series.current_qtd is not None
+    assert series.current_qtd.as_of == date(2026, 3, 15)
+    assert series.last_updated is not None
+
+
+def test_current_qtd_is_the_true_latest_even_when_the_filter_excludes_it(db_session):
+    """A date filter narrows the plotted arrays but not the summary fields.
+
+    Filtering with a date_to before the most recent as_of drops that snapshot
+    from qtd_snapshots, but current_qtd still resolves to the true latest
+    snapshot of the whole series, so the badge never reports a stale value.
+    """
+    series = get_series(
+        db_session,
+        "ACME",
+        "Total Revenue ($MM)",
+        date_from=date(2026, 1, 1),
+        date_to=date(2026, 2, 15),
+    )
+    # The 2026-03-15 snapshot is outside the filtered view.
+    assert [s.as_of for s in series.qtd_snapshots] == [
+        date(2026, 1, 31),
+        date(2026, 2, 15),
+    ]
+    # current_qtd is still the true latest snapshot of the full series.
+    assert series.current_qtd is not None
+    assert series.current_qtd.as_of == date(2026, 3, 15)
+    assert series.current_qtd.value == 40.0
 
 
 def test_kpi_lookup_is_case_insensitive(db_session):

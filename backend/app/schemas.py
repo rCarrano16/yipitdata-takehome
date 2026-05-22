@@ -89,6 +89,11 @@ class SeriesAnalytics(BaseModel):
 class SeriesDetail(BaseModel):
     """The full (company, KPI) time series: closed-quarter history plus QTD snapshots.
 
+    `history` and `qtd_snapshots` are the plotted arrays and answer to the
+    request's date filter. `current_qtd`, `last_updated`, and `analytics` are
+    series-level summary fields: they describe the whole series and do not
+    change when the date filter narrows the view.
+
     `current_qtd` is the snapshot with the latest `as_of`, surfaced here so the
     UI and the MCP tools never recompute it. `last_updated` is the most recent
     `created_at` across the series, the audit "last updated" timestamp.
