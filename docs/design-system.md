@@ -115,11 +115,9 @@ outside this table.
 
 | Token | Value | Source | Usage |
 |---|---|---|---|
-| `--positive` | `#4CAF50` | Chart Green | Positive status only |
-| `--negative` | `#ED5C6D` | Chart Red | Errors, destructive status |
+| `--positive` | `#4CAF50` | Chart Green | Positive status; rising trend metric (section 10) |
+| `--negative` | `#ED5C6D` | Chart Red | Errors, destructive status; falling trend metric (section 10) |
 | `--warning` | `#F7BB49` | Chart Yellow | Caution status |
-| `--positive-soft` | `#E6F4E7` | Derived, `--positive` 14% on `--surface` | Background tint of a positive status pill |
-| `--negative-soft` | `#FCE8EB` | Derived, `--negative` 14% on `--surface` | Background tint of a negative status pill |
 
 ### Elevation
 
@@ -165,7 +163,9 @@ together; do not use a system-font fallback as the primary face.
 ### Rules
 
 - Weights: Roboto 400 and 500; 700 is reserved for rare, genuine emphasis.
-  Roboto Mono 400 and 500. Premium hierarchy is built with 500, not 700.
+  Roboto Mono 400 and 500, plus 700 for the trend metric only (the one
+  sanctioned 700 use, see Trend metric in section 7). Premium hierarchy is
+  built with 500, not 700.
 - Any number rendered in Roboto (not Roboto Mono) must set
   `font-variant-numeric: tabular-nums` so numeric columns align.
 - Tickers and the KPI hero value always use Roboto Mono.
@@ -274,14 +274,18 @@ height ~32px. A trend cue only; never a substitute for the detail chart.
 Pill (`--radius-pill`), Roboto 11px/500, `--ink-muted` text, `--canvas`
 background, `1px solid var(--rule)`, padding `1px 8px`.
 
-### Trend badge
+### Trend metric
 
-A status pill for one closed-quarter trend signal (QoQ or YoY): the label in
-`--ink-muted`, the signed percent in Roboto Mono `--ink`. The tone is a soft
-semantic tint, `--positive-soft` for a rise or `--negative-soft` for a fall;
-the `+` / `-` sign carries the direction as text, so meaning never depends on
-color alone. A null signal (no comparable quarter) uses the neutral Badge
-treatment. Same pill on the summary cards and the series-page trend row.
+A trend signal is inline text, not a pill: an optional short label in
+`--ink-muted` followed by the signed percent in Roboto Mono 700, color-toned
+`--positive` for a rise or `--negative` for a fall. The `+` / `-` sign carries
+the direction as text, so meaning never depends on color alone; the colors
+themselves are a documented contrast exception (section 10). A null signal
+(no comparable value) renders a muted `--ink-muted` "n/a".
+
+The same treatment serves the QoQ / YoY badges (summary cards and the
+series-page trend row) and the per-panel range change beside each detail-chart
+panel title, so every trend figure in the app reads the same.
 
 ### Filter chip
 
@@ -377,6 +381,15 @@ From YipitData's published dashboard guidance:
 - `--ink-subtle` `#9AA3A5` on white is approximately 2.6:1 and fails AA for
   text. Use it only for placeholder text (a real `<label>` is always present
   too) and disabled controls, never for content such as a caption.
+- **Documented exception, the trend metric.** The QoQ / YoY badges and the
+  detail chart's per-panel range change render the signed percent in the full
+  semantic colors `--positive` `#4CAF50` (~2.9:1 on white) and `--negative`
+  `#ED5C6D` (~3.3:1), both below the AA text threshold. This is a deliberate
+  trade-off for a punchy, on-brand trend read. It is sound because the figure
+  never relies on color alone: it is bold Roboto Mono 700, always carries an
+  explicit `+` / `-` sign, and a QoQ / YoY badge also carries a text label, so
+  the direction is conveyed by text, weight, and sign. Color is reinforcement
+  here, not the sole carrier of meaning.
 - Every interactive element has a visible focus state (section 6).
 - Never encode meaning by color alone. Pair color with text, shape, or position
   (history and QTD live in separate, titled panels).

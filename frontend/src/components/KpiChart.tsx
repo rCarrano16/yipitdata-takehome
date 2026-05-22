@@ -1,8 +1,9 @@
 import type { SeriesDetail } from '../api/types'
-import { toHistorySeries, toQtdSeries } from '../lib/chartData'
-import { formatPeriod } from '../lib/format'
+import { rangeChange, toHistorySeries, toQtdSeries } from '../lib/chartData'
+import { formatPercent, formatPeriod } from '../lib/format'
 import HistoryChart from './HistoryChart'
 import QtdChart from './QtdChart'
+import TrendValue from './TrendValue'
 
 interface KpiChartProps {
   series: SeriesDetail
@@ -24,6 +25,12 @@ export default function KpiChart({ series, stale }: KpiChartProps) {
   const history = toHistorySeries(series)
   const qtd = toQtdSeries(series)
 
+  // The change across exactly the points each panel shows. It moves with the
+  // period filter on the history panel; the QTD panel always holds the full
+  // quarter, so its change is the intra-quarter movement of the estimate.
+  const historyChange = rangeChange(history)
+  const qtdChange = rangeChange(qtd)
+
   const historyScale =
     history.length > 0
       ? `Closed quarters, ${formatPeriod(
@@ -38,12 +45,36 @@ export default function KpiChart({ series, stale }: KpiChartProps) {
   return (
     <div className={stale ? 'chart-panels chart-stale' : 'chart-panels'}>
       <section className="chart-panel chart-panel--history">
-        <h2 className="chart-panel-title">Quarterly history</h2>
+        <div className="chart-panel-head">
+          <h2 className="chart-panel-title">Quarterly history</h2>
+          {historyChange !== null && (
+            <span
+              className="chart-panel-delta"
+              aria-label={`Change across the quarters shown: ${formatPercent(
+                historyChange,
+              )}`}
+            >
+              <TrendValue value={historyChange} />
+            </span>
+          )}
+        </div>
         <p className="chart-panel-scale">{historyScale}</p>
         <HistoryChart data={history} unit={series.unit} />
       </section>
       <section className="chart-panel chart-panel--qtd">
-        <h2 className="chart-panel-title">Quarter-to-date</h2>
+        <div className="chart-panel-head">
+          <h2 className="chart-panel-title">Quarter-to-date</h2>
+          {qtdChange !== null && (
+            <span
+              className="chart-panel-delta"
+              aria-label={`Change across the snapshots shown: ${formatPercent(
+                qtdChange,
+              )}`}
+            >
+              <TrendValue value={qtdChange} />
+            </span>
+          )}
+        </div>
         <p className="chart-panel-scale">{qtdScale}</p>
         <QtdChart data={qtd} unit={series.unit} />
       </section>

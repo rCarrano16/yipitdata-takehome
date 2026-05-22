@@ -45,6 +45,23 @@ export function toHistorySeries(series: SeriesDetail): HistoryPoint[] {
   return points
 }
 
+/**
+ * The percent change across a panel's points, first to last, as a fraction
+ * (0.05 means +5%). Returns null when there are fewer than two points or the
+ * first value is zero (a change off a zero base is undefined).
+ *
+ * Unlike the YoY/QoQ analytics, this moves with the chart's date filter: it
+ * summarizes exactly the range currently on screen. Both HistoryPoint and
+ * QtdPoint carry a `value`, so one helper serves both panels.
+ */
+export function rangeChange(points: { value: number }[]): number | null {
+  if (points.length < 2) return null
+  const first = points[0].value
+  const last = points[points.length - 1].value
+  if (first === 0) return null
+  return (last - first) / first
+}
+
 /** QTD snapshots as an as_of-sorted array for the quarter-to-date panel. */
 export function toQtdSeries(series: SeriesDetail): QtdPoint[] {
   const points: QtdPoint[] = []

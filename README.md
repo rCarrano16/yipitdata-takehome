@@ -22,7 +22,9 @@ quarter, YoY against the same quarter last year). They are computed only from
 **historical** data: a QTD value is partial and cumulative-to-date, so a
 cross-quarter comparison of it would mislead. They are also computed from the
 full history, so they stay stable when the chart's date filter narrows the
-view.
+view. The detail chart goes further: each of its two panels also shows the
+percent change across exactly the range on screen, which by contrast does move
+with the filter.
 
 The dataset covers 20 companies across 18 sectors, 5 KPIs, and 100
 `(company, KPI)` series. Each series has two parts: a **history** of closed

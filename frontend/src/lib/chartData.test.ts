@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SeriesDetail } from '../api/types'
-import { toHistorySeries, toQtdSeries } from './chartData'
+import { rangeChange, toHistorySeries, toQtdSeries } from './chartData'
 
 function makeSeries(): SeriesDetail {
   return {
@@ -117,5 +117,30 @@ describe('toQtdSeries', () => {
     const series = makeSeries()
     series.qtd_snapshots = []
     expect(toQtdSeries(series)).toEqual([])
+  })
+})
+
+describe('rangeChange', () => {
+  it('computes the first-to-last change of the history points', () => {
+    // makeSeries history: 2025Q3 = 100, 2025Q4 = 120.
+    expect(rangeChange(toHistorySeries(makeSeries()))).toBeCloseTo(0.2)
+  })
+
+  it('computes the first-to-last change of the QTD points', () => {
+    // makeSeries QTD snapshots: 40 then 55.
+    expect(rangeChange(toQtdSeries(makeSeries()))).toBeCloseTo(0.375)
+  })
+
+  it('returns null for fewer than two points', () => {
+    expect(rangeChange([{ value: 100 }])).toBeNull()
+    expect(rangeChange([])).toBeNull()
+  })
+
+  it('returns null when the first value is zero', () => {
+    expect(rangeChange([{ value: 0 }, { value: 50 }])).toBeNull()
+  })
+
+  it('is negative when the series falls', () => {
+    expect(rangeChange([{ value: 100 }, { value: 75 }])).toBeCloseTo(-0.25)
   })
 })
