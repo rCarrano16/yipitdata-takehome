@@ -47,3 +47,19 @@ def session_scope() -> Iterator[Session]:
         raise
     finally:
         session.close()
+
+
+@contextmanager
+def read_only_session() -> Iterator[Session]:
+    """Session context manager for reads: roll back on exit, never commit.
+
+    The MCP server uses this for every tool. Rolling back instead of committing
+    discards any state and ends the transaction cleanly, so the read-only MCP
+    server is read-only by construction, not only by convention.
+    """
+    session = SessionLocal()
+    try:
+        yield session
+    finally:
+        session.rollback()
+        session.close()

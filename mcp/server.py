@@ -9,7 +9,9 @@ reusable templates that chain the tools into a common analyst workflow.
 The tools reuse the backend service layer in-process: they import `app.service`
 and call the exact same functions the REST routers call, so query logic is
 written once and never duplicated, with no HTTP hop to the REST API. Each tool
-opens its own short-lived database session via `session_scope`.
+opens its own short-lived, read-only database session via `read_only_session`,
+which rolls back instead of committing, so the read-only server is read-only by
+construction.
 
 Each tool is annotated with a Pydantic return type, so FastMCP generates a JSON
 Schema for the tool output as well as its input. That output schema is the
@@ -33,7 +35,7 @@ from fastmcp.exceptions import ToolError
 from pydantic import BaseModel
 
 from app import service
-from app.db import session_scope
+from app.db import read_only_session
 from app.errors import NotFoundError
 from app.schemas import (
     CompanyDetail,
@@ -138,7 +140,7 @@ def search_companies(query: str | None = None) -> CompanyList:
         query: Optional case-insensitive text matched against ticker, company
             name, and sector. Omit it to list all companies.
     """
-    with session_scope() as session:
+    with read_only_session() as session:
         companies = service.list_companies(session, search=query)
     return CompanyList(companies=companies)
 
@@ -150,7 +152,7 @@ def list_kpis() -> KpiList:
     Use this to get the exact KPI names the estimate tools expect, for example
     "Total Revenue ($MM)" or "ASP ($)".
     """
-    with session_scope() as session:
+    with read_only_session() as session:
         kpis = service.list_kpis(session)
     return KpiList(kpis=kpis)
 
@@ -168,7 +170,7 @@ def get_company(ticker: str) -> CompanyDetail:
         ticker: The company ticker, case-insensitive, for example "ACME".
     """
     try:
-        with session_scope() as session:
+        with read_only_session() as session:
             return service.get_company(session, ticker)
     except NotFoundError as e:
         raise ToolError(str(e)) from e
@@ -194,7 +196,7 @@ def get_company_estimates(
     """
     _require_ordered_dates(date_from, date_to)
     try:
-        with session_scope() as session:
+        with read_only_session() as session:
             return service.get_company_estimates(session, ticker, date_from, date_to)
     except NotFoundError as e:
         raise ToolError(str(e)) from e
@@ -223,7 +225,7 @@ def get_kpi_estimates(
     """
     _require_ordered_dates(date_from, date_to)
     try:
-        with session_scope() as session:
+        with read_only_session() as session:
             return service.get_series(session, ticker, kpi, date_from, date_to)
     except NotFoundError as e:
         raise ToolError(str(e)) from e
@@ -243,7 +245,7 @@ def get_current_qtd(ticker: str, kpi: str) -> CurrentQtd:
             Call `list_kpis` for the available names.
     """
     try:
-        with session_scope() as session:
+        with read_only_session() as session:
             series = service.get_series(session, ticker, kpi)
     except NotFoundError as e:
         raise ToolError(str(e)) from e
@@ -278,7 +280,7 @@ def compare_kpi_across_companies(
             include every company that reports the KPI.
     """
     try:
-        with session_scope() as session:
+        with read_only_session() as session:
             return service.compare_kpi(session, kpi, tickers)
     except NotFoundError as e:
         raise ToolError(str(e)) from e
