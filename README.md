@@ -160,7 +160,12 @@ or a `latest_qtd` flag for current QTD, and a cache for the overview.
   `kpi_estimates_published_total` counter, in the exposition format a Prometheus
   scraper reads directly. Successful `/metrics` and `/health` probes are logged
   at `DEBUG`, not `INFO`, so the steady probe traffic does not bury the request
-  log.
+  log. For this evaluation build `/metrics` is served unauthenticated on the
+  same listener as the API. In production it should be bound to an internal
+  interface or port, or allowlisted at the ingress or reverse proxy, so only the
+  Prometheus scraper can reach it: endpoint metrics are an operational signal,
+  not customer data, and the standard practice is to protect them at the network
+  layer rather than with application auth.
 - **Health check.** `GET /health` runs a trivial query and reports database
   connectivity, returning 503 on failure.
 - **Auditing.** Publishing is append-only, so the `estimates` table is itself an
