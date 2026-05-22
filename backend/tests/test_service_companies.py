@@ -5,10 +5,12 @@ no N+1.
 """
 
 from datetime import date
+from decimal import Decimal
 
 import pytest
 
 from app.errors import NotFoundError
+from app.schemas import PublishEstimateRequest
 from app.service import (
     _fetch_current_qtd_by_series,
     _fetch_sparklines,
@@ -17,6 +19,7 @@ from app.service import (
     get_overview,
     list_companies,
     list_kpis,
+    publish_estimate,
 )
 
 
@@ -114,6 +117,33 @@ def test_overview_search_narrows_the_qtd_and_sparkline_fetches(db_session):
     assert len(_fetch_current_qtd_by_series(db_session, search="retail")) == 1
     assert len(_fetch_sparklines(db_session)) == 4
     assert len(_fetch_sparklines(db_session, search="retail")) == 1
+
+
+def test_overview_sparkline_dedupes_a_republished_historical_correction(db_session):
+    """A re-published historical correction must not double a sparkline point.
+
+    The overview sparkline is built with DISTINCT ON (company_id, kpi_id,
+    period), mirroring the detail chart's _fetch_history dedup, so a corrected
+    quarter contributes one point carrying the corrected value, not two.
+    """
+    # Re-publish ACME's 2025Q4 Total Revenue as a correction: 120 -> 125.
+    publish_estimate(
+        db_session,
+        PublishEstimateRequest(
+            ticker="ACME",
+            kpi="Total Revenue ($MM)",
+            period="2025Q4",
+            period_start=date(2025, 10, 1),
+            period_end=date(2025, 12, 31),
+            estimate_type="historical",
+            value=Decimal("125"),
+            as_of=None,
+        ),
+    )
+    overview = get_overview(db_session)
+    card = next(c for c in overview.cards if c.ticker == "ACME" and c.kpi == "Total Revenue ($MM)")
+    # 2025Q4 still contributes exactly one sparkline point, now the corrected 125.
+    assert card.sparkline == [100.0, 110.0, 125.0]
 
 
 def test_overview_runs_a_constant_number_of_queries(db_session, query_counter):

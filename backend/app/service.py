@@ -391,25 +391,41 @@ def _fetch_sparklines(
 ) -> dict[tuple[int, int], list[float]]:
     """The recent historical values per series, for the overview sparklines.
 
-    One query fetches all historical values oldest first; Python groups them by
-    series and keeps the most recent few of each. The optional search narrows
-    the query to the matching series, so a filtered overview does not fetch
-    every series' history.
+    DISTINCT ON (company_id, kpi_id, period) collapses a re-published historical
+    correction to one row per quarter, the latest created_at then highest id
+    winning, exactly as _fetch_history does for the detail chart. Python then
+    groups the rows by series, sorts each group by period_end, and keeps the
+    most recent few values. The optional search narrows the query to the
+    matching series, so a filtered overview does not fetch every series' history.
     """
-    query = select(Estimate.company_id, Estimate.kpi_id, Estimate.value).where(
-        Estimate.estimate_type == "historical"
-    )
+    query = select(
+        Estimate.company_id,
+        Estimate.kpi_id,
+        Estimate.period,
+        Estimate.period_end,
+        Estimate.value,
+    ).where(Estimate.estimate_type == "historical")
     if search:
         query = (
             query.join(Company, Company.id == Estimate.company_id)
             .join(Kpi, Kpi.id == Estimate.kpi_id)
             .where(_overview_search_predicate(search))
         )
-    query = query.order_by(Estimate.company_id, Estimate.kpi_id, Estimate.period_start)
-    grouped: dict[tuple[int, int], list[float]] = defaultdict(list)
-    for company_id, kpi_id, value in session.execute(query):
-        grouped[(company_id, kpi_id)].append(float(value))
-    return {key: values[-_SPARKLINE_POINTS:] for key, values in grouped.items()}
+    query = query.distinct(Estimate.company_id, Estimate.kpi_id, Estimate.period).order_by(
+        Estimate.company_id,
+        Estimate.kpi_id,
+        Estimate.period,
+        Estimate.created_at.desc(),
+        Estimate.id.desc(),
+    )
+    grouped: dict[tuple[int, int], list[tuple[date, float]]] = defaultdict(list)
+    for company_id, kpi_id, _period, period_end, value in session.execute(query):
+        grouped[(company_id, kpi_id)].append((period_end, float(value)))
+    sparklines: dict[tuple[int, int], list[float]] = {}
+    for key, points in grouped.items():
+        points.sort(key=lambda point: point[0])
+        sparklines[key] = [value for _period_end, value in points[-_SPARKLINE_POINTS:]]
+    return sparklines
 
 
 def get_overview(session: Session, search: str | None = None) -> OverviewResponse:
