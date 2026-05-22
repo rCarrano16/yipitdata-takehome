@@ -19,7 +19,7 @@ export default function App() {
       <header className="app-header">
         <div className="container app-header-inner">
           <Link to="/" className="app-title">
-            KPI Estimates Portal
+            YipitData KPI Estimates Portal
           </Link>
         </div>
       </header>
