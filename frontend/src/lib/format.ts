@@ -95,6 +95,18 @@ export function formatDate(iso: string): string {
     : iso
 }
 
+/**
+ * Format a date string as a short month-and-day label, e.g. "Mar 31". The QTD
+ * chart's X axis ticks use this: every snapshot is in the same quarter, so the
+ * year would be redundant. Falls back to the raw input.
+ */
+export function formatMonthDay(iso: string): string {
+  const d = parseDate(iso)
+  return d
+    ? d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })
+    : iso
+}
+
 /** Format a datetime string as "May 21, 2026, 02:30 PM". Falls back to raw. */
 export function formatDateTime(iso: string): string {
   const d = parseDate(iso)

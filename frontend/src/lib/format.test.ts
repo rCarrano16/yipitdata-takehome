@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   formatCompact,
   formatDate,
+  formatMonthDay,
   formatPeriod,
   formatQuarterTick,
   formatValue,
@@ -104,5 +105,16 @@ describe('formatDate', () => {
 
   it('falls back to the raw input when it cannot parse', () => {
     expect(formatDate('not-a-date')).toBe('not-a-date')
+  })
+})
+
+describe('formatMonthDay', () => {
+  it('formats a date as a short month and day, with no year', () => {
+    expect(formatMonthDay('2026-01-31')).toBe('Jan 31')
+    expect(formatMonthDay('2026-03-15')).toBe('Mar 15')
+  })
+
+  it('falls back to the raw input when it cannot parse', () => {
+    expect(formatMonthDay('not-a-date')).toBe('not-a-date')
   })
 })

@@ -1,149 +1,54 @@
-import {
-  CartesianGrid,
-  Line,
-  LineChart,
-  ResponsiveContainer,
-  Tooltip,
-  XAxis,
-  YAxis,
-} from 'recharts'
 import type { SeriesDetail } from '../api/types'
-import type { ChartPoint } from '../lib/chartData'
-import { toChartData } from '../lib/chartData'
-import {
-  formatCompact,
-  formatDate,
-  formatPeriod,
-  formatQuarterTick,
-  formatValue,
-} from '../lib/format'
-
-// Recharts takes colors as plain props, and var() does not resolve inside SVG
-// presentation attributes, so the design tokens are mirrored here as literal
-// constants. Keep these in sync with the tokens in styles.css.
-const HISTORICAL_COLOR = '#197f9f' // --series-history
-const QTD_COLOR = '#f48c5c' // --series-qtd
-const CHROME_COLOR = '#dde5e7' // --rule: grid, axis, and tick lines
-const AXIS_TEXT_COLOR = '#616767' // --ink-muted: axis tick labels
-
-// Axis tick text: Roboto Mono, 11px, --ink-muted (design-system section 8).
-const AXIS_TICK = {
-  fontSize: 11,
-  fontFamily: '"Roboto Mono", monospace',
-  fill: AXIS_TEXT_COLOR,
-}
+import { toHistorySeries, toQtdSeries } from '../lib/chartData'
+import { formatPeriod } from '../lib/format'
+import HistoryChart from './HistoryChart'
+import QtdChart from './QtdChart'
 
 interface KpiChartProps {
   series: SeriesDetail
+  /** True while a re-fetch is in flight, so both panels dim together. */
+  stale: boolean
+  /** True when a date filter is active; drives the QTD empty-state copy. */
+  filtered: boolean
 }
 
 /**
- * The detailed history-vs-QTD chart.
+ * The detail view: two side-by-side panels, each on its own scale.
  *
- * The X axis is a continuous time scale, not a category axis, so the 16
- * quarterly history points are spaced by real time and the four QTD snapshots
- * sit clustered at the right edge. The two `<Line>` series read different
- * data keys and use `connectNulls={false}`, so they draw as two separate,
- * unconnected lines: a solid line for closed history, a dashed line for the
- * in-progress quarter.
+ * Closed-quarter history and the quarter-to-date snapshots are two different
+ * comparisons. A multi-year trend and the evolution of an estimate inside one
+ * in-progress quarter do not belong on a shared axis: an intra-quarter snapshot
+ * is a partial measure, so against closed-quarter totals it collapses into a
+ * sliver and the history-to-QTD step reads as a sudden drop. Each comparison
+ * gets its own titled panel with its own labelled scale.
  */
-export default function KpiChart({ series }: KpiChartProps) {
-  const data = toChartData(series)
+export default function KpiChart({ series, stale, filtered }: KpiChartProps) {
+  const history = toHistorySeries(series)
+  const qtd = toQtdSeries(series)
 
-  if (data.length === 0) {
-    return (
-      <div className="chart-empty">No data points in the selected range.</div>
-    )
-  }
+  const historyScale =
+    history.length > 0
+      ? `Closed quarters, ${formatPeriod(
+          history[0].period,
+        )} to ${formatPeriod(history[history.length - 1].period)}`
+      : 'Closed quarters'
+  const qtdScale =
+    qtd.length > 0
+      ? `${formatPeriod(qtd[0].period)} snapshots, independent scale`
+      : 'Snapshots, independent scale'
 
   return (
-    <>
-      <ResponsiveContainer width="100%" height={380}>
-        <LineChart data={data} margin={{ top: 8, right: 24, bottom: 4, left: 8 }}>
-          <CartesianGrid stroke={CHROME_COLOR} vertical={false} />
-          <XAxis
-            dataKey="t"
-            type="number"
-            scale="time"
-            domain={['dataMin', 'dataMax']}
-            tickCount={8}
-            tick={AXIS_TICK}
-            axisLine={{ stroke: CHROME_COLOR }}
-            tickLine={{ stroke: CHROME_COLOR }}
-            tickFormatter={(t: number) => formatQuarterTick(t)}
-          />
-          <YAxis
-            width={64}
-            tick={AXIS_TICK}
-            axisLine={{ stroke: CHROME_COLOR }}
-            tickLine={{ stroke: CHROME_COLOR }}
-            tickFormatter={(value: number) => formatCompact(value)}
-          />
-          <Tooltip
-            isAnimationActive={false}
-            content={({ active, payload }) => {
-              if (!active || !payload || payload.length === 0) {
-                return null
-              }
-              // The hovered x carries an entry for each line; the line that is
-              // null there has a null value, so keep the one real point.
-              const entry = payload.find((item) => item.value != null)
-              if (!entry || entry.value == null) {
-                return null
-              }
-              const point = entry.payload as ChartPoint
-              const isQtd = entry.dataKey === 'qtd'
-              return (
-                <div className="chart-tooltip">
-                  <div className="chart-tooltip-label">
-                    {isQtd ? 'QTD snapshot' : 'Closed quarter'}
-                  </div>
-                  <div className="chart-tooltip-value">
-                    {formatValue(Number(entry.value), series.unit)}
-                  </div>
-                  <div className="muted">
-                    {isQtd && point.asOf
-                      ? `as of ${formatDate(point.asOf)}`
-                      : formatPeriod(point.period)}
-                  </div>
-                </div>
-              )
-            }}
-          />
-          <Line
-            name="Historical"
-            dataKey="historical"
-            stroke={HISTORICAL_COLOR}
-            strokeWidth={2}
-            dot={{ r: 2 }}
-            connectNulls={false}
-            isAnimationActive={false}
-          />
-          <Line
-            name="QTD"
-            dataKey="qtd"
-            stroke={QTD_COLOR}
-            strokeWidth={2}
-            strokeDasharray="5 4"
-            dot={{ r: 3 }}
-            connectNulls={false}
-            isAnimationActive={false}
-          />
-        </LineChart>
-      </ResponsiveContainer>
-      <div className="legend">
-        <span className="legend-item">
-          <span
-            className="legend-swatch"
-            style={{ background: HISTORICAL_COLOR }}
-          />
-          Closed-quarter history
-        </span>
-        <span className="legend-item">
-          <span className="legend-swatch" style={{ background: QTD_COLOR }} />
-          QTD snapshots
-        </span>
-      </div>
-    </>
+    <div className={stale ? 'chart-panels chart-stale' : 'chart-panels'}>
+      <section className="chart-panel chart-panel--history">
+        <h2 className="chart-panel-title">Quarterly history</h2>
+        <p className="chart-panel-scale">{historyScale}</p>
+        <HistoryChart data={history} unit={series.unit} />
+      </section>
+      <section className="chart-panel chart-panel--qtd">
+        <h2 className="chart-panel-title">Quarter-to-date</h2>
+        <p className="chart-panel-scale">{qtdScale}</p>
+        <QtdChart data={qtd} unit={series.unit} filtered={filtered} />
+      </section>
+    </div>
   )
 }

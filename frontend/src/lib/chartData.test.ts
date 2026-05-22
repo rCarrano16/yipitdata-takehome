@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { SeriesDetail } from '../api/types'
-import { toChartData } from './chartData'
+import { toHistorySeries, toQtdSeries } from './chartData'
 
 function makeSeries(): SeriesDetail {
   return {
@@ -54,45 +54,67 @@ function makeSeries(): SeriesDetail {
   }
 }
 
-describe('toChartData', () => {
-  it('merges history and QTD snapshots into one time-sorted array', () => {
-    const points = toChartData(makeSeries())
-    expect(points).toHaveLength(4)
-    const times = points.map((point) => point.t)
-    expect(times).toEqual([...times].sort((a, b) => a - b))
+describe('toHistorySeries', () => {
+  it('maps each closed quarter to a time-stamped point', () => {
+    const points = toHistorySeries(makeSeries())
+    expect(points).toHaveLength(2)
+    expect(points[0]).toEqual({
+      t: new Date('2025-09-30T00:00:00').getTime(),
+      value: 100,
+      period: '2025Q3',
+    })
   })
 
-  it('puts each row on exactly one of the two series', () => {
-    const points = toChartData(makeSeries())
-    expect(points[0].historical).toBe(100)
-    expect(points[0].qtd).toBeNull()
-    expect(points[3].qtd).toBe(55)
-    expect(points[3].historical).toBeNull()
-  })
-
-  it('carries the as_of date on QTD rows only', () => {
-    const points = toChartData(makeSeries())
-    expect(points[0].asOf).toBeNull()
-    expect(points[2].asOf).toBe('2026-01-31')
-  })
-
-  it('sorts out-of-order input by time', () => {
+  it('sorts out-of-order history by time', () => {
     const series = makeSeries()
     series.history.reverse()
+    const points = toHistorySeries(series)
+    expect(points.map((point) => point.period)).toEqual(['2025Q3', '2025Q4'])
+  })
+
+  it('excludes the QTD snapshots', () => {
+    const points = toHistorySeries(makeSeries())
+    expect(points).toHaveLength(2)
+    expect(points.some((point) => point.period === '2026Q1')).toBe(false)
+  })
+
+  it('returns an empty array when there is no history', () => {
+    const series = makeSeries()
+    series.history = []
+    expect(toHistorySeries(series)).toEqual([])
+  })
+})
+
+describe('toQtdSeries', () => {
+  it('maps each snapshot to an as_of-stamped point', () => {
+    const points = toQtdSeries(makeSeries())
+    expect(points).toHaveLength(2)
+    expect(points[0]).toEqual({
+      asOf: '2026-01-31',
+      value: 40,
+      period: '2026Q1',
+    })
+  })
+
+  it('sorts out-of-order snapshots by as_of', () => {
+    const series = makeSeries()
     series.qtd_snapshots.reverse()
-    const points = toChartData(series)
-    expect(points.map((point) => point.period)).toEqual([
-      '2025Q3',
-      '2025Q4',
-      '2026Q1',
-      '2026Q1',
+    const points = toQtdSeries(series)
+    expect(points.map((point) => point.asOf)).toEqual([
+      '2026-01-31',
+      '2026-02-28',
     ])
   })
 
-  it('returns an empty array for a series with no points', () => {
+  it('excludes the closed-quarter history', () => {
+    const points = toQtdSeries(makeSeries())
+    expect(points).toHaveLength(2)
+    expect(points.some((point) => point.period.startsWith('2025'))).toBe(false)
+  })
+
+  it('returns an empty array when there are no snapshots', () => {
     const series = makeSeries()
-    series.history = []
     series.qtd_snapshots = []
-    expect(toChartData(series)).toEqual([])
+    expect(toQtdSeries(series)).toEqual([])
   })
 })

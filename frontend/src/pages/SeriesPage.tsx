@@ -86,9 +86,7 @@ export default function SeriesPage() {
         </div>
       )}
 
-      <div className={loading ? 'chart-card chart-stale' : 'chart-card'}>
-        <KpiChart series={data} />
-      </div>
+      <KpiChart series={data} stale={loading} filtered={Boolean(from || to)} />
     </div>
   )
 }

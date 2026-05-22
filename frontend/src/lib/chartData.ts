@@ -1,57 +1,64 @@
 /**
- * The transform behind the detailed chart: it merges a series' closed-quarter
- * history and its QTD snapshots into one array on a single time axis.
+ * The transforms behind the detail chart. The drill-down renders two separate
+ * panels, one for closed-quarter history and one for the quarter-to-date
+ * snapshots, each on its own scale, so the data is shaped into two independent
+ * arrays rather than one merged series.
  *
- * Historical points are plotted at their `period_end`, QTD snapshots at their
- * `as_of`. Each row carries the value for only one of the two series (the
- * other is null), so the chart draws two separate, unconnected lines. The
- * array is sorted by time, which a numeric Recharts axis requires.
+ * History points are plotted at their `period_end` on a continuous time axis;
+ * QTD points are plotted at their `as_of` snapshot date.
  */
 
 import type { SeriesDetail } from '../api/types'
 import { parseDate } from './format'
 
-export interface ChartPoint {
-  /** Epoch milliseconds: the numeric X-axis value. */
+/** One closed-quarter point on the history panel. */
+export interface HistoryPoint {
+  /** Epoch milliseconds of `period_end`: the numeric time X-axis value. */
   t: number
-  /** The historical value at this time, or null on a QTD row. */
-  historical: number | null
-  /** The QTD value at this time, or null on a historical row. */
-  qtd: number | null
-  /** The quarter code, e.g. "2025Q4". Present on every row. */
+  /** The closed-quarter estimate value. */
+  value: number
+  /** The quarter code, e.g. "2025Q4", shown in the tooltip. */
   period: string
-  /** The snapshot date, set only on a QTD row. */
-  asOf: string | null
 }
 
-/** Merge a series into the sorted, single-axis data the chart renders. */
-export function toChartData(series: SeriesDetail): ChartPoint[] {
-  const points: ChartPoint[] = []
+/** One intra-quarter snapshot on the quarter-to-date panel. */
+export interface QtdPoint {
+  /** The snapshot date "YYYY-MM-DD": the category X-axis value. */
+  asOf: string
+  /** The QTD estimate value at this snapshot. */
+  value: number
+  /** The quarter code, e.g. "2026Q1". */
+  period: string
+}
+
+/** Closed-quarter history as a time-sorted array for the history panel. */
+export function toHistorySeries(series: SeriesDetail): HistoryPoint[] {
+  const points: HistoryPoint[] = []
 
   for (const point of series.history) {
     const t = parseDate(point.period_end)?.getTime()
     if (t === undefined) continue
-    points.push({
-      t,
-      historical: point.value,
-      qtd: null,
-      period: point.period,
-      asOf: null,
-    })
-  }
-
-  for (const snapshot of series.qtd_snapshots) {
-    const t = parseDate(snapshot.as_of)?.getTime()
-    if (t === undefined) continue
-    points.push({
-      t,
-      historical: null,
-      qtd: snapshot.value,
-      period: snapshot.period,
-      asOf: snapshot.as_of,
-    })
+    points.push({ t, value: point.value, period: point.period })
   }
 
   points.sort((a, b) => a.t - b.t)
+  return points
+}
+
+/** QTD snapshots as an as_of-sorted array for the quarter-to-date panel. */
+export function toQtdSeries(series: SeriesDetail): QtdPoint[] {
+  const points: QtdPoint[] = []
+
+  for (const snapshot of series.qtd_snapshots) {
+    if (parseDate(snapshot.as_of) === null) continue
+    points.push({
+      asOf: snapshot.as_of,
+      value: snapshot.value,
+      period: snapshot.period,
+    })
+  }
+
+  // ISO date strings sort correctly lexically.
+  points.sort((a, b) => a.asOf.localeCompare(b.asOf))
   return points
 }
