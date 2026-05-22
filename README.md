@@ -369,10 +369,9 @@ the tooling lives in `.claude/` and `CLAUDE.md`.
 - **The application core was built in the main thread**, where every decision is
   visible, never delegated to opaque build-subagents. Subagents were used only
   for research and for reviewing finished code.
-- **`.claude/skills/`** holds four custom skills that structure each work
+- **`.claude/skills/`** holds three custom skills that structure each work
   session: `start-session` (rebuild context), `end-session` (a clean handoff),
-  `review-pass` (run the review agents), and `study-module` (prepare for the
-  live review).
+  and `review-pass` (run the review agents).
 - **`.claude/agents/`** holds four adversarial, read-only review agents,
   `backend-review`, `frontend-review`, `mcp-review`, and `data-security-review`,
   run against the finished code to audit it for correctness and defensibility.

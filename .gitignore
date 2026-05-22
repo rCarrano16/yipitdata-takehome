@@ -29,6 +29,7 @@ build/
 
 # Claude Code
 .claude/settings.local.json
+.claude/skills/study-module/
 
 # Internal working files (not part of the deliverable)
 STATE.md
