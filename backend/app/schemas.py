@@ -136,6 +136,36 @@ class OverviewResponse(BaseModel):
     cards: list[OverviewCard]
 
 
+class KpiComparisonRow(BaseModel):
+    """One company's standing on a single KPI, for a peer comparison.
+
+    Carries the latest closed-quarter value, the current QTD value, and the
+    YoY/QoQ trend signals, so several rows line up into a comparison table. A
+    value field is null when the company has no data for that part.
+    """
+
+    ticker: str
+    company_name: str
+    sector: str
+    latest_historical_value: float | None
+    latest_historical_period: str | None
+    current_qtd_value: float | None
+    current_qtd_as_of: date | None
+    analytics: SeriesAnalytics
+
+
+class KpiComparison(BaseModel):
+    """One KPI compared across several companies: the peer-scan result.
+
+    `kpi` and `unit` are stated once, since every row shares them; `companies`
+    holds one row per company, sorted by ticker.
+    """
+
+    kpi: str
+    unit: str
+    companies: list[KpiComparisonRow]
+
+
 class PublishEstimateRequest(BaseModel):
     """The body of POST /estimates: a new estimate to append.
 

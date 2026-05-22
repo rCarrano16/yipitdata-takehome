@@ -23,6 +23,8 @@ from app.schemas import (
     CompanyEstimates,
     CompanySummary,
     EstimatePoint,
+    KpiComparison,
+    KpiComparisonRow,
     KpiInfo,
     QtdSnapshot,
     SeriesAnalytics,
@@ -36,7 +38,10 @@ _TOOL_NAMES = {
     "get_company_estimates",
     "get_kpi_estimates",
     "get_current_qtd",
+    "compare_kpi_across_companies",
 }
+
+_PROMPT_NAMES = {"earnings_preview", "peer_scan"}
 
 
 def _list_tools():
@@ -55,6 +60,26 @@ def _call_tool(name, args):
     async def _run():
         async with Client(server.mcp) as client:
             return await client.call_tool(name, args)
+
+    return asyncio.run(_run())
+
+
+def _list_prompts():
+    """Return the prompt list as an MCP client sees it."""
+
+    async def _run():
+        async with Client(server.mcp) as client:
+            return await client.list_prompts()
+
+    return asyncio.run(_run())
+
+
+def _get_prompt(name, args):
+    """Render one prompt through an in-memory MCP client and return the result."""
+
+    async def _run():
+        async with Client(server.mcp) as client:
+            return await client.get_prompt(name, args)
 
     return asyncio.run(_run())
 
@@ -308,3 +333,94 @@ def test_get_current_qtd_unknown_series_raises_tool_error(monkeypatch):
     monkeypatch.setattr(server.service, "get_series", fake_get_series)
     with pytest.raises(ToolError, match="company not found"):
         _call_tool("get_current_qtd", {"ticker": "ZZZ", "kpi": "ASP ($)"})
+
+
+# --- compare_kpi_across_companies ------------------------------------------
+
+
+def _comparison() -> KpiComparison:
+    """A minimal KpiComparison for stubbing service.compare_kpi."""
+    return KpiComparison(
+        kpi="Total Revenue ($MM)",
+        unit="$MM",
+        companies=[
+            KpiComparisonRow(
+                ticker="ACME",
+                company_name="Acme Inc",
+                sector="Cloud",
+                latest_historical_value=120.0,
+                latest_historical_period="2025Q4",
+                current_qtd_value=42.0,
+                current_qtd_as_of=date(2026, 3, 15),
+                analytics=SeriesAnalytics(latest_period="2025Q4", qoq=0.05, yoy=None),
+            )
+        ],
+    )
+
+
+def test_compare_kpi_returns_the_comparison_and_passes_the_tickers(monkeypatch):
+    seen = {}
+
+    def fake_compare_kpi(session, kpi_name, tickers=None):
+        seen.update(kpi=kpi_name, tickers=tickers)
+        return _comparison()
+
+    monkeypatch.setattr(server.service, "compare_kpi", fake_compare_kpi)
+    result = _call_tool(
+        "compare_kpi_across_companies",
+        {"kpi": "Total Revenue ($MM)", "tickers": ["ACME", "BETA"]},
+    )
+
+    assert seen["kpi"] == "Total Revenue ($MM)"
+    assert seen["tickers"] == ["ACME", "BETA"]
+    assert result.structured_content == _comparison().model_dump(mode="json")
+
+
+def test_compare_kpi_without_tickers_passes_none(monkeypatch):
+    seen = {}
+
+    def fake_compare_kpi(session, kpi_name, tickers=None):
+        seen["tickers"] = tickers
+        return _comparison()
+
+    monkeypatch.setattr(server.service, "compare_kpi", fake_compare_kpi)
+    _call_tool("compare_kpi_across_companies", {"kpi": "Total Revenue ($MM)"})
+    assert seen["tickers"] is None
+
+
+def test_compare_kpi_unknown_kpi_raises_tool_error(monkeypatch):
+    def fake_compare_kpi(session, kpi_name, tickers=None):
+        raise NotFoundError(f"KPI not found: {kpi_name}")
+
+    monkeypatch.setattr(server.service, "compare_kpi", fake_compare_kpi)
+    with pytest.raises(ToolError, match="KPI not found"):
+        _call_tool("compare_kpi_across_companies", {"kpi": "Nope"})
+
+
+# --- prompts ---------------------------------------------------------------
+
+
+def test_all_prompts_are_registered():
+    assert {p.name for p in _list_prompts()} == _PROMPT_NAMES
+
+
+def test_earnings_preview_prompt_names_the_ticker_and_the_tools():
+    result = _get_prompt("earnings_preview", {"ticker": "ACME"})
+    text = result.messages[0].content.text
+    assert "ACME" in text
+    assert "get_company_estimates" in text
+
+
+def test_peer_scan_prompt_names_the_kpi_sector_and_compare_tool():
+    result = _get_prompt("peer_scan", {"kpi": "Total Revenue ($MM)", "sector": "Cloud"})
+    text = result.messages[0].content.text
+    assert "Total Revenue ($MM)" in text
+    assert "Cloud" in text
+    assert "compare_kpi_across_companies" in text
+
+
+def test_peer_scan_prompt_works_without_a_sector():
+    result = _get_prompt("peer_scan", {"kpi": "Units Sold"})
+    text = result.messages[0].content.text
+    assert "Units Sold" in text
+    assert "compare_kpi_across_companies" in text

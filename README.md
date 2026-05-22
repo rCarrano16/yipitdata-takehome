@@ -31,9 +31,9 @@ The dataset covers 20 companies across 18 sectors, 5 KPIs, and 100
 fiscal quarters and a **QTD** (quarter-to-date) view of the in-progress quarter.
 
 The same data is served to two audiences. Human users get a React web app. AI
-agents (Claude Desktop, Cursor, and similar) get an MCP server with six
-read-only tools. Both are backed by one shared service layer, so query logic is
-written once.
+agents (Claude Desktop, Cursor, and similar) get an MCP server with seven
+read-only tools and two prompts. Both are backed by one shared service layer,
+so query logic is written once.
 
 ## Architecture
 
@@ -45,7 +45,7 @@ flowchart TD
   end
   Browser -->|loads| SPA["React + TypeScript SPA<br/>frontend/"]
   SPA -->|HTTP / JSON| REST["FastAPI REST routers<br/>backend/app/routers"]
-  Agent -->|MCP / stdio| MCP["FastMCP server<br/>mcp/server.py (6 read-only tools)"]
+  Agent -->|MCP / stdio| MCP["FastMCP server<br/>mcp/server.py (7 read-only tools)"]
   REST --> SVC["Shared service layer<br/>backend/app/service.py"]
   MCP --> SVC
   SVC --> DB[("PostgreSQL<br/>companies / kpis / estimates")]
@@ -173,7 +173,7 @@ or a `latest_qtd` flag for current QTD, and a cache for the overview.
 **MCP channel.** The REST API has the full structured-logging stack above. The
 MCP server deliberately relies on FastMCP's own logging to stderr: with stdio
 transport, stdout is the JSON-RPC protocol channel, so a stdout log handler
-would corrupt it. The six MCP tools surface failures through typed `ToolError`
+would corrupt it. The seven MCP tools surface failures through typed `ToolError`
 messages instead.
 
 **Forward plan.** Grafana dashboards over the `/metrics` endpoint; shipping the
@@ -277,7 +277,7 @@ Edit `claude_desktop_config.json` (Settings -> Developer -> Edit Config):
 On Windows the command is `...\.venv\Scripts\python.exe`. No `env` block is
 needed: `config.py` locates the repo-root `.env` by an absolute path, so the
 server finds `DATABASE_URL` whatever the working directory. Restart Claude
-Desktop; the six tools appear:
+Desktop; the seven tools appear:
 
 - **`search_companies`** finds companies by ticker, name, or sector.
 - **`list_kpis`** lists every KPI and its unit.
@@ -287,6 +287,14 @@ Desktop; the six tools appear:
 - **`get_kpi_estimates`** returns the full history and QTD snapshots for one
   `(company, KPI)` series.
 - **`get_current_qtd`** returns only the latest QTD snapshot for a series.
+- **`compare_kpi_across_companies`** compares one KPI across several companies,
+  one row each with the latest value, the current QTD, and the QoQ/YoY trend.
+
+The server also exposes two **prompts**, reusable workflow templates a client
+surfaces to the user (in Claude Desktop, as selectable starters):
+
+- **`earnings_preview`** drafts a pre-earnings briefing for one company.
+- **`peer_scan`** compares one KPI across a sector or a peer group.
 
 Ask, for example: "What is the current QTD revenue estimate for ACME?"
 
@@ -308,8 +316,8 @@ backend/    FastAPI service: SQLAlchemy models, routers, the shared service
             layer, the QTD logic, the idempotent CSV seed.
 frontend/   React + TypeScript single-page app: the typed API client, the
             company directory and the company and series pages, the chart.
-mcp/        FastMCP server: six read-only tools that reuse the backend
-            service layer in-process.
+mcp/        FastMCP server: seven read-only tools and two prompts that reuse
+            the backend service layer in-process.
 data/       The CSV seed (kpi_sample_2000.csv).
 docs/       The architecture reference and diagrams.
 ```

@@ -1,8 +1,10 @@
 """FastMCP server: the KPI estimates data API exposed as MCP tools.
 
 This is the AI-agent channel of the application. An LLM client (Claude Desktop,
-Cursor, and similar) connects over stdio and calls these six read-only tools to
-look up companies, retrieve KPI estimates, and query quarter-to-date (QTD) data.
+Cursor, and similar) connects over stdio and calls these seven read-only tools
+to look up companies, retrieve KPI estimates, query quarter-to-date (QTD) data,
+and compare a KPI across companies. The server also exposes two MCP prompts,
+reusable templates that chain the tools into a common analyst workflow.
 
 The tools reuse the backend service layer in-process: they import `app.service`
 and call the exact same functions the REST routers call, so query logic is
@@ -12,10 +14,10 @@ opens its own short-lived database session via `session_scope`.
 Each tool is annotated with a Pydantic return type, so FastMCP generates a JSON
 Schema for the tool output as well as its input. That output schema is the
 formal description of the result shape, which is what lets a calling LLM
-discover what it gets back. Three tools return existing service-layer schemas
-(`CompanyDetail`, `SeriesDetail`, `CompanyEstimates`); the other three return
-small wrapper models defined here, because the MCP protocol requires a tool
-output schema to be an object, not a bare array or scalar.
+discover what it gets back. Four tools return existing service-layer schemas
+(`CompanyDetail`, `SeriesDetail`, `CompanyEstimates`, `KpiComparison`); the
+other three return small wrapper models defined here, because the MCP protocol
+requires a tool output schema to be an object, not a bare array or scalar.
 
 stdio note: with stdio transport the process stdout IS the JSON-RPC channel, so
 nothing else may be written there. This module therefore never imports
@@ -37,6 +39,7 @@ from app.schemas import (
     CompanyDetail,
     CompanyEstimates,
     CompanySummary,
+    KpiComparison,
     KpiInfo,
     QtdSnapshot,
     SeriesDetail,
@@ -249,6 +252,80 @@ def get_current_qtd(ticker: str, kpi: str) -> CurrentQtd:
         kpi=series.kpi,
         unit=series.unit,
         current_qtd=series.current_qtd,
+    )
+
+
+@mcp.tool(annotations=_READ_ONLY_ANNOTATIONS)
+def compare_kpi_across_companies(
+    kpi: str,
+    tickers: list[str] | None = None,
+) -> KpiComparison:
+    """Compare one KPI across several companies, side by side.
+
+    Returns one row per company with its latest closed-quarter value, its
+    current QTD value, and its QoQ and YoY trend signals, so peers can be ranked
+    on a single metric in one call. Use this for a peer or sector comparison;
+    use `get_kpi_estimates` when you need the full history of one company.
+
+    Call `search_companies` first to get the exact tickers (for example every
+    company in one sector), then pass them here. Omit `tickers` to compare every
+    company that reports the KPI.
+
+    Args:
+        kpi: The KPI name, case-insensitive, for example "Total Revenue ($MM)".
+            Call `list_kpis` for the available names.
+        tickers: Optional list of company tickers, case-insensitive. Omit it to
+            include every company that reports the KPI.
+    """
+    try:
+        with session_scope() as session:
+            return service.compare_kpi(session, kpi, tickers)
+    except NotFoundError as e:
+        raise ToolError(str(e)) from e
+
+
+# ---------------------------------------------------------------------------
+# Prompts
+#
+# MCP prompts are reusable, parameterized templates the client surfaces to the
+# user (Claude Desktop shows them as selectable starters). Each one chains the
+# tools above into a common analyst workflow, so an agent follows a known-good
+# sequence of calls instead of improvising one.
+# ---------------------------------------------------------------------------
+
+
+@mcp.prompt
+def earnings_preview(ticker: str) -> str:
+    """Draft a pre-earnings briefing for one company from its KPI estimates."""
+    return (
+        f"Prepare a concise earnings-preview briefing for {ticker}.\n\n"
+        "Steps:\n"
+        f'1. Call get_company with ticker "{ticker}" to see which KPIs it '
+        "reports.\n"
+        f'2. Call get_company_estimates for "{ticker}" to pull every KPI '
+        "series.\n"
+        "3. For each KPI, state the latest closed-quarter value, the current "
+        "QTD estimate with its as_of date, and the QoQ and YoY trend.\n"
+        "4. Flag any KPI where the QTD pace looks notably ahead of or behind "
+        "the recent historical trend.\n\n"
+        "Present it as a short briefing an investor can read in under a minute."
+    )
+
+
+@mcp.prompt
+def peer_scan(kpi: str, sector: str | None = None) -> str:
+    """Compare one KPI across a sector or peer group, ranked by standing and trend."""
+    group = f"companies in the {sector} sector" if sector else "a peer group of companies"
+    search_hint = f' with query "{sector}"' if sector else ""
+    return (
+        f'Compare {group} on the KPI "{kpi}".\n\n'
+        "Steps:\n"
+        f"1. Call search_companies{search_hint} to get the company tickers.\n"
+        f'2. Call compare_kpi_across_companies with kpi "{kpi}" and those '
+        "tickers.\n"
+        "3. Rank the companies by their current QTD value, and call out the "
+        "strongest and weakest QoQ and YoY movers.\n\n"
+        "Present a short comparative table plus a one-line takeaway."
     )
 
 

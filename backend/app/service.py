@@ -27,6 +27,8 @@ from app.schemas import (
     CompanySummary,
     EstimatePoint,
     EstimateRecord,
+    KpiComparison,
+    KpiComparisonRow,
     KpiInfo,
     OverviewCard,
     OverviewResponse,
@@ -418,6 +420,173 @@ def get_overview(session: Session, search: str | None = None) -> OverviewRespons
         )
     cards.sort(key=lambda c: (c.ticker, c.kpi))
     return OverviewResponse(cards=cards)
+
+
+# ---------------------------------------------------------------------------
+# Comparison (one KPI across companies)
+# ---------------------------------------------------------------------------
+
+
+def _resolve_comparison_companies(
+    session: Session, kpi: Kpi, tickers: list[str] | None
+) -> list[Company]:
+    """Resolve the companies a KPI comparison covers.
+
+    With no tickers, every company that reports the KPI. With an explicit list,
+    exactly those companies, resolved case-insensitively; an unknown ticker
+    raises NotFoundError, so a typo fails loudly instead of silently dropping a
+    column from the comparison.
+    """
+    if not tickers:
+        query = (
+            select(Company)
+            .join(Estimate, Estimate.company_id == Company.id)
+            .where(Estimate.kpi_id == kpi.id)
+            .distinct()
+            .order_by(Company.ticker)
+        )
+        return list(session.scalars(query).all())
+    found = {
+        c.ticker.lower(): c
+        for c in session.scalars(
+            select(Company).where(
+                func.lower(Company.ticker).in_([t.strip().lower() for t in tickers])
+            )
+        ).all()
+    }
+    companies: list[Company] = []
+    for ticker in tickers:
+        company = found.get(ticker.strip().lower())
+        if company is None:
+            raise NotFoundError(f"company not found: {ticker}")
+        companies.append(company)
+    return companies
+
+
+def _fetch_kpi_history_by_company(
+    session: Session, kpi_id: int, company_ids: list[int]
+) -> dict[int, list[EstimatePoint]]:
+    """Closed-quarter history for one KPI across many companies, in one query.
+
+    The batched form of _fetch_history. DISTINCT ON (company_id, period)
+    collapses a re-published correction to one row per quarter, the latest
+    created_at then highest id winning. The rows are grouped by company in
+    Python and each group sorted by period_end, so there is one query for every
+    company, never one query each.
+    """
+    if not company_ids:
+        return {}
+    query = (
+        select(Estimate)
+        .where(
+            Estimate.kpi_id == kpi_id,
+            Estimate.estimate_type == "historical",
+            Estimate.company_id.in_(company_ids),
+        )
+        .distinct(Estimate.company_id, Estimate.period)
+        .order_by(
+            Estimate.company_id,
+            Estimate.period,
+            Estimate.created_at.desc(),
+            Estimate.id.desc(),
+        )
+    )
+    grouped: dict[int, list[EstimatePoint]] = defaultdict(list)
+    for r in session.scalars(query).all():
+        grouped[r.company_id].append(
+            EstimatePoint(
+                period=r.period,
+                period_start=r.period_start,
+                period_end=r.period_end,
+                value=r.value,
+                created_at=r.created_at,
+            )
+        )
+    for points in grouped.values():
+        points.sort(key=lambda p: p.period_end)
+    return dict(grouped)
+
+
+def _fetch_kpi_current_qtd_by_company(
+    session: Session, kpi_id: int, company_ids: list[int]
+) -> dict[int, QtdSnapshot]:
+    """The current QTD snapshot for one KPI per company, in one query.
+
+    DISTINCT ON (company_id) with as_of, created_at, id all descending takes the
+    latest snapshot per company, the same resolution _fetch_current_qtd_by_series
+    uses, narrowed to a single KPI.
+    """
+    if not company_ids:
+        return {}
+    query = (
+        select(Estimate)
+        .where(
+            Estimate.kpi_id == kpi_id,
+            Estimate.estimate_type == "qtd",
+            Estimate.company_id.in_(company_ids),
+        )
+        .distinct(Estimate.company_id)
+        .order_by(
+            Estimate.company_id,
+            Estimate.as_of.desc(),
+            Estimate.created_at.desc(),
+            Estimate.id.desc(),
+        )
+    )
+    return {
+        r.company_id: QtdSnapshot(
+            period=r.period,
+            period_start=r.period_start,
+            period_end=r.period_end,
+            value=r.value,
+            as_of=r.as_of,
+            created_at=r.created_at,
+        )
+        for r in session.scalars(query).all()
+    }
+
+
+def compare_kpi(
+    session: Session,
+    kpi_name: str,
+    tickers: list[str] | None = None,
+) -> KpiComparison:
+    """Compare one KPI across several companies, one row each.
+
+    For the KPI, returns each company's latest closed-quarter value, its current
+    QTD value, and its YoY/QoQ trend signals, so an agent can rank peers on a
+    single metric. With no tickers it covers every company reporting the KPI.
+
+    Runs a constant four queries regardless of company count: resolve the KPI,
+    resolve the companies, then one batched history query and one batched QTD
+    query. There is no per-company query, so no N+1. Raises NotFoundError for an
+    unknown KPI or an unknown ticker.
+    """
+    kpi = _get_kpi(session, kpi_name)
+    companies = _resolve_comparison_companies(session, kpi, tickers)
+    company_ids = [c.id for c in companies]
+    history_by_company = _fetch_kpi_history_by_company(session, kpi.id, company_ids)
+    qtd_by_company = _fetch_kpi_current_qtd_by_company(session, kpi.id, company_ids)
+
+    rows: list[KpiComparisonRow] = []
+    for company in companies:
+        history = history_by_company.get(company.id, [])
+        latest = history[-1] if history else None
+        qtd = qtd_by_company.get(company.id)
+        rows.append(
+            KpiComparisonRow(
+                ticker=company.ticker,
+                company_name=company.name,
+                sector=company.sector,
+                latest_historical_value=latest.value if latest is not None else None,
+                latest_historical_period=latest.period if latest is not None else None,
+                current_qtd_value=qtd.value if qtd is not None else None,
+                current_qtd_as_of=qtd.as_of if qtd is not None else None,
+                analytics=compute_analytics(history),
+            )
+        )
+    rows.sort(key=lambda r: r.ticker)
+    return KpiComparison(kpi=kpi.name, unit=kpi.unit, companies=rows)
 
 
 # ---------------------------------------------------------------------------
