@@ -566,10 +566,14 @@ input:focus-visible {
 }
 
 /* Period filter, directly below the chart title (design-system 9): a
-   segmented control, plus a custom-quarter row that the "Custom" mode reveals.
-   The group carries the bottom margin so the layout does not shift when the
-   custom row appears. */
+   segmented control followed, when the "Custom" mode is selected, by two
+   quarter dropdowns. The group lays them out in one row, so revealing the
+   dropdowns extends the filter rightward and does not push the chart down. */
 .period-filter-group {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 12px;
   margin-bottom: 16px;
 }
 
@@ -615,19 +619,18 @@ input:focus-visible {
   outline-offset: -2px;
 }
 
-/* The "Custom" mode's two quarter dropdowns, on their own row below the
-   segmented control. */
+/* The "Custom" mode's two quarter dropdowns, inline to the right of the
+   segmented control and matched to its height so the row does not grow. */
 .period-custom {
   display: flex;
-  flex-wrap: wrap;
-  gap: 16px;
-  margin-top: 12px;
+  align-items: center;
+  gap: 12px;
 }
 
 .period-custom-field {
   display: flex;
-  flex-direction: column;
-  gap: 4px;
+  align-items: center;
+  gap: 6px;
 }
 
 .period-custom-field label {
@@ -640,13 +643,12 @@ input:focus-visible {
 
 .period-custom-select {
   font: inherit;
-  font-size: 14px;
-  padding: 8px 12px;
+  font-size: 13px;
+  padding: 6px 10px;
   border: 1px solid var(--rule);
   border-radius: var(--radius);
   background: var(--surface);
   color: var(--ink);
-  min-width: 140px;
 }
 
 .series-toolbar {

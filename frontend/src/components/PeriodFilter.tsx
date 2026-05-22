@@ -131,13 +131,13 @@ export default function PeriodFilter({
         <div className="period-custom">
           <QuarterSelect
             id="period-from"
-            label="From quarter"
+            label="From"
             value={customRange.from}
             onChange={handleFromChange}
           />
           <QuarterSelect
             id="period-to"
-            label="To quarter"
+            label="To"
             value={customRange.to}
             onChange={handleToChange}
           />
