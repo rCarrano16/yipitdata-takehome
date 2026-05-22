@@ -92,7 +92,7 @@ outside this table.
 | `--rule` | `#DDE5E7` | Derived | Hairline borders and dividers |
 | `--ink` | `#16242A` | Derived | Primary text |
 | `--ink-muted` | `#616767` | YipitData Dark Grey | Secondary text, labels |
-| `--ink-subtle` | `#9AA3A5` | Derived | Tertiary text, placeholders, disabled |
+| `--ink-subtle` | `#9AA3A5` | Derived | Placeholder text and disabled controls only; ~2.6:1 on white, never content text |
 
 ### Interactive and accent
 
@@ -257,7 +257,7 @@ filters (search field, optional sector filter) sit on top of the list.
 Not a shadowed box. A region on `--surface` bordered by `1px solid var(--rule)`,
 `--radius`, no shadow. Top to bottom: KPI name (label/caption style), latest
 closed value (KPI hero value style, Roboto Mono 30px, `--ink`), period caption
-(`--ink-subtle`), sparkline, a hairline `--rule` divider, then the QTD row -
+(`--ink-muted`), sparkline, a hairline `--rule` divider, then the QTD row -
 "Current QTD" label (`--ink-muted`) with its value (Roboto Mono, `--series-qtd`)
 and the as-of badge. The whole card is a link; hover sets the border to
 `--accent`.
@@ -310,10 +310,19 @@ The detail chart and the sparkline follow YipitData's published chart
 guidelines.
 
 - **Series colors:** historical = `--series-history` (`#197F9F`), QTD =
-  `--series-qtd` (`#F48C5C`). The two are distinct enough for a two-series
-  chart. Never rely on color alone - also distinguish the series by point
-  markers and label both in the legend.
-- **Legend:** placed at the bottom of the chart.
+  `--series-qtd` (`#F48C5C`). The detail view splits history and QTD into two
+  separate single-series panels, so each panel carries one color; the panel
+  title identifies the series and color is never the only cue.
+- **Line treatment:** a clean line with a subtle area fill beneath it (a soft
+  vertical fade of the series color). No dot on every point; an emphasized dot
+  marks only the latest point, and a hover dot appears on interaction. Drop the
+  axis lines, keep the tick labels; the hover cursor is a `--rule` hairline.
+- **Legend:** only a chart with several series on one axis needs a legend
+  (place it at the bottom). The two-panel detail view has one series per panel
+  and uses no legend; the panel title names the series.
+- **Y axis:** a panel showing an accumulating quantity (the QTD panel) anchors
+  its Y axis at zero, so the magnitude is honest and a small change is not
+  exaggerated.
 - **X axis:** show only the time markers needed to read the trend - target
   4-10 ticks total, never one per data point. With 16 historical quarters,
   render roughly one tick per year or 6-8 evenly spaced ticks. Abbreviate
@@ -354,9 +363,12 @@ From YipitData's published dashboard guidance:
   body text. Interactive text uses `--link` `#0D4753` (~9:1).
 - `--ink-muted` `#616767` on `--surface` and `--canvas` is approximately 5:1 -
   acceptable for secondary text.
+- `--ink-subtle` `#9AA3A5` on white is approximately 2.6:1 and fails AA for
+  text. Use it only for placeholder text (a real `<label>` is always present
+  too) and disabled controls, never for content such as a caption.
 - Every interactive element has a visible focus state (section 6).
 - Never encode meaning by color alone. Pair color with text, shape, or position
-  (history vs QTD: color plus legend plus marker).
+  (history and QTD live in separate, titled panels).
 - All controls are reachable and operable by keyboard.
 
 ---
@@ -366,7 +378,10 @@ From YipitData's published dashboard guidance:
 Do not:
 
 - Use the Tailwind default palette, or any color outside section 3.
-- Use gradients, glassmorphism, or background blur.
+- Use decorative gradients (gradient buttons or backgrounds), glassmorphism, or
+  background blur. A subtle area fill under a chart line - a soft vertical fade
+  of the series color - is a functional data-visualization element, not
+  decoration, and is allowed.
 - Put drop shadows on cards, surfaces, or buttons. The only shadow is
   `--shadow-overlay`.
 - Use emoji, or decorative icons. Any icon is functional and from one
