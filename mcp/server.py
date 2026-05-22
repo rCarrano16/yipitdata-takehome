@@ -235,9 +235,11 @@ def get_kpi_estimates(
 def get_current_qtd(ticker: str, kpi: str) -> CurrentQtd:
     """Get only the current quarter-to-date (QTD) estimate for one company KPI.
 
-    Returns the single most recent QTD snapshot, the one with the latest `as_of`
-    date. Use this when you only need the latest in-progress-quarter value, not
-    the full history. `current_qtd` is null if the series has no QTD data.
+    Returns just the single most recent QTD snapshot, the one with the latest
+    `as_of` date, so the result is small and focused on the in-progress quarter.
+    Use this when you want only the latest QTD value; use `get_kpi_estimates`
+    when you need the full history and every snapshot. `current_qtd` is null if
+    the series has no QTD data.
 
     Args:
         ticker: The company ticker, case-insensitive, for example "ACME".
