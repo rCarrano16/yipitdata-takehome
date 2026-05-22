@@ -22,6 +22,7 @@ from sqlalchemy.orm import Session
 from app.db import engine, session_scope
 from app.log_config import configure_logging
 from app.models import Base, Company, Estimate, Kpi
+from app.periods import quarter_window
 
 logger = logging.getLogger("app.seed")
 
@@ -89,6 +90,12 @@ def _parse_row(row: dict, line_no: int) -> dict:
     if period_end < period_start:
         raise ValueError(
             f"line {line_no}: period_end {period_end} precedes period_start {period_start}"
+        )
+    expected_start, expected_end = quarter_window(period)
+    if (period_start, period_end) != (expected_start, expected_end):
+        raise ValueError(
+            f"line {line_no}: period {period} spans {expected_start} to {expected_end}, "
+            f"not {period_start} to {period_end}"
         )
 
     raw_as_of = (row.get("as_of") or "").strip()

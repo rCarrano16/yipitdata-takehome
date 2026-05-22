@@ -16,6 +16,8 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
+from app.periods import quarter_window
+
 
 class CompanySummary(BaseModel):
     """A company as it appears in a list or a search result."""
@@ -192,16 +194,26 @@ class PublishEstimateRequest(BaseModel):
 
     @model_validator(mode="after")
     def _check_consistency(self) -> "PublishEstimateRequest":
-        """Enforce the period ordering and the as_of invariants.
+        """Enforce the period window and the as_of invariants.
 
-        This mirrors the database CHECK constraints: a qtd estimate is a snapshot
-        and must carry an as_of date; a historical estimate is a closed quarter
-        and must not. A qtd as_of must also fall inside the period window: the
-        current-QTD resolution orders by as_of, so an as_of outside the quarter
-        (a far-future date in particular) would permanently win that resolution.
+        The period code fully determines the quarter, so period_start and
+        period_end must match the calendar window that code names. A mismatch
+        would let a row sort by period_end while it trends by the period
+        ordinal, so the two would disagree. This also mirrors the database CHECK
+        constraints: a qtd estimate is a snapshot and must carry an as_of date;
+        a historical estimate is a closed quarter and must not. A qtd as_of must
+        fall inside the period window: the current-QTD resolution orders by
+        as_of, so an as_of outside the quarter (a far-future date in particular)
+        would permanently win that resolution.
         """
         if self.period_end < self.period_start:
             raise ValueError("period_end must not precede period_start")
+        expected_start, expected_end = quarter_window(self.period)
+        if (self.period_start, self.period_end) != (expected_start, expected_end):
+            raise ValueError(
+                f"period {self.period} spans {expected_start} to {expected_end}, "
+                f"not {self.period_start} to {self.period_end}"
+            )
         if self.estimate_type == "qtd" and self.as_of is None:
             raise ValueError("a qtd estimate requires an as_of date")
         if (

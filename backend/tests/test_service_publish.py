@@ -87,6 +87,14 @@ def test_period_end_before_start_is_rejected_by_the_schema():
         )
 
 
+def test_period_window_mismatch_is_rejected_by_the_schema():
+    # period_start and period_end must match the calendar quarter the period
+    # code names: 2026Q1 is January 1 to March 31. A window off by even one day
+    # would let the row sort by period_end but trend by the period ordinal.
+    with pytest.raises(PydanticValidationError):
+        PublishEstimateRequest(**_qtd_payload(period_end=date(2026, 3, 30)))
+
+
 def test_qtd_as_of_after_the_period_window_is_rejected_by_the_schema():
     # A far-future as_of would otherwise permanently win the current-QTD resolution.
     with pytest.raises(PydanticValidationError):

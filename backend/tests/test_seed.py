@@ -50,3 +50,10 @@ def test_parse_row_rejects_a_malformed_period():
     # endpoint enforces, so a CSV-formula string cannot reach the stored data.
     with pytest.raises(ValueError, match="invalid period"):
         _parse_row(_qtd_row(period="=1+1"), line_no=2)
+
+
+def test_parse_row_rejects_a_period_window_that_does_not_match_the_code():
+    # period_start and period_end must match the calendar quarter the period
+    # code names: 2026Q1 is January 1 to March 31.
+    with pytest.raises(ValueError, match="2026Q1 spans"):
+        _parse_row(_qtd_row(period_end="2026-03-30"), line_no=2)
