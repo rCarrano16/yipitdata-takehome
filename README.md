@@ -9,10 +9,11 @@ YipitData Senior Software Engineer assignment.
 
 Public-market investors need key performance indicators (KPIs) such as revenue,
 units sold, and subscriber growth for the companies they follow, and they need
-them fast. This app gives them a **glanceable** view: a summary of every tracked
-series at a glance, drilling down to a detailed history-vs-QTD chart when a
-number needs a closer look. It saves investors the effort of digging through raw
-estimates.
+them fast. This app gives them a **glanceable** view: a searchable company
+directory leads to a company page that summarizes that company's KPIs at a
+glance, and any KPI drills down to a detailed chart of its closed-quarter
+history and quarter-to-date snapshots. It saves investors the effort of digging
+through raw estimates.
 
 The dataset covers 20 companies across 18 sectors, 5 KPIs, and 100
 `(company, KPI)` series. Each series has two parts: a **history** of closed
@@ -84,7 +85,7 @@ snapshot model, since a new QTD estimate is itself a new snapshot.
 | Frontend | **React + TypeScript (strict)** | Conventional, component-based, fully typed end to end against the API contract. |
 | Build tool | **Vite** | Fast dev server and build; ships Vitest for the unit tests. |
 | Routing | **React Router** | The standard SPA router; maps the four URLs to pages. |
-| Charts | **Recharts** | Declarative React charting for the one detailed history-vs-QTD chart. Code-split so the glance tier never downloads it. |
+| Charts | **Recharts** | Declarative React charting for the detailed history and QTD chart. Code-split so the directory and company pages never download it. |
 | Local orchestration | **Docker Compose** | One command brings up a seeded database and the API. |
 
 Deliberately **not** used: no Redux or React Query (local state is enough), no
@@ -92,16 +93,28 @@ GraphQL, no repository pattern, no Alembic (see Future improvements), no ORM
 lazy-loading tricks. Every file is meant to be simple enough to explain and
 defend in a live review.
 
+## Design
+
+The web frontend follows a documented design system,
+[`docs/design-system.md`](docs/design-system.md), derived from YipitData's
+published design language. It fixes the color tokens (built from YipitData's
+Charts and Visualizations palette), the typography (Roboto for UI text, Roboto
+Mono for every number and chart axis label), spacing, component styling, and
+the data-visualization rules the detail chart follows. The target is an
+institutional research terminal, a "data desk": numbers are the product,
+hairline rules separate content instead of shadows, and color is reserved for
+state and data series.
+
 ## Reliability, performance, and scalability
 
 **Performance.** The users are time-constrained, so reads are tuned for speed.
 `estimates` carries a `(company_id, kpi_id)` index and a partial index for the
-QTD path. The overview (100 cards) runs a **constant three queries** assembled in
-Python, never one query per series; a query-counting test proves there is no
-N+1. Current QTD is a single index-backed `DISTINCT ON`. On the frontend, the
-chart library is code-split into its own chunk, so the glance tier loads only
-~78 kB of gzipped JavaScript, and the summary sparklines are hand-rolled SVG
-rather than 100 chart instances.
+QTD path. The `GET /overview` endpoint runs a **constant three queries**
+assembled in Python, never one query per series; a query-counting test proves
+there is no N+1. Current QTD is a single index-backed `DISTINCT ON`. On the
+frontend, the chart library is code-split into its own chunk, so the directory
+and company pages load only ~78 kB of gzipped JavaScript, and the company
+page's summary sparklines are hand-rolled SVG rather than full chart instances.
 
 **Reliability.** Writes are append-only, so no request can destroy data.
 Database `CHECK` constraints are a final backstop behind Pydantic validation.
@@ -179,7 +192,7 @@ Verify it:
 
 ```bash
 curl http://localhost:8000/health      # -> {"status":"ok","db":"ok"}
-curl http://localhost:8000/overview    # -> 100 summary cards
+curl http://localhost:8000/companies   # -> 20 companies
 ```
 
 **Two database URLs, by design.** Inside the Compose network the backend reaches
@@ -280,7 +293,7 @@ extra dependency.
 backend/    FastAPI service: SQLAlchemy models, routers, the shared service
             layer, the QTD logic, the idempotent CSV seed.
 frontend/   React + TypeScript single-page app: the typed API client, the
-            overview (glance) and series (drill-down) pages, the chart.
+            company directory and the company and series pages, the chart.
 mcp/        FastMCP server: six read-only tools that reuse the backend
             service layer in-process.
 data/       The CSV seed (kpi_sample_2000.csv).
@@ -331,5 +344,9 @@ generated and accepted blindly.
   aggregation, SLO alerting, and OpenTelemetry tracing (see Observability).
 - **Frontend component and end-to-end tests.** The current frontend tests cover
   the pure `lib/` logic; component and end-to-end tests would be the next layer.
+- **Server-side directory search.** The company directory loads every company
+  once and filters in the browser, which is instant for 20 and fine into the
+  low hundreds. For thousands of companies the path is server-side search with
+  pagination or list virtualization.
 - **Scale-out reads.** A caching layer for the overview and PostgreSQL read
   replicas, if read volume grows well beyond a single instance.

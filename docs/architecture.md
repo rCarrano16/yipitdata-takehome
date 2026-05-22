@@ -143,4 +143,4 @@ short-lived session and calls the identical service function.
 | The QTD / as-of point-in-time snapshot model | The `estimates` table with an `estimate_type` discriminator and a nullable `as_of`; current QTD derived with `DISTINCT ON` and the `as_of, created_at, id` tiebreak. |
 | One shared data API for the frontend and the MCP server | `service.py`, imported in-process by both the REST routers and the MCP tools. Query logic is written exactly once. |
 | MCP tools an LLM can use naturally | Six intent-shaped, read-only tools with LLM-facing docstrings, typed Pydantic return models (so FastMCP publishes an output schema), and truthful read-only annotations. |
-| Fast, glanceable reads | Targeted indexes; the overview is three constant-count queries assembled in Python, with no N+1 (a query-counting test proves it); the frontend code-splits the chart library and uses hand-rolled SVG sparklines. |
+| Fast, glanceable reads | Targeted indexes; the `GET /overview` endpoint is three constant-count queries assembled in Python, with no N+1 (a query-counting test proves it); the frontend code-splits the chart library and uses hand-rolled SVG sparklines. |

@@ -7,7 +7,7 @@ export default function NotFoundPage() {
       <h1>404</h1>
       <p className="muted">This page does not exist.</p>
       <p>
-        <Link to="/">Back to the overview</Link>
+        <Link to="/">Back to the directory</Link>
       </p>
     </div>
   )

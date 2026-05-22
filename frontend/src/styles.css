@@ -637,10 +637,13 @@ input:focus-visible {
 
 .notfound {
   text-align: center;
-  padding: 72px 20px;
+  padding: 56px 20px;
 }
 
+/* Large numeral in Roboto Mono (design-system 7 "Not Found"). */
 .notfound h1 {
+  font-family: "Roboto Mono", monospace;
   font-size: 48px;
+  font-weight: 500;
   margin-bottom: 8px;
 }
