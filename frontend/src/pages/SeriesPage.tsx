@@ -98,14 +98,20 @@ export default function SeriesPage() {
           qtdAsOf={data.current_qtd ? data.current_qtd.as_of : null}
           filtered={mode !== 'all'}
         />
-        <ExportButton series={data} disabled={isEmpty} />
+        <ExportButton series={data} disabled={isEmpty || error !== null} />
       </div>
 
       {/* A re-fetch failed but `useApi` kept the last good data: show it under
-          a non-blocking banner instead of a full-page error (review F3). */}
+          a non-blocking banner instead of a full-page error (review F3).
+          Export is disabled while this banner is up, because the chart shows
+          the last successful load, not the filter the controls now describe. */}
       {error && (
         <div className="error-banner">
-          <span>Could not refresh the series: {error.message}</span>
+          <span>
+            The latest filter change could not be applied, so the chart and
+            export still show the data from the last successful load. Retry to
+            apply the current filter. ({error.message})
+          </span>
           <button type="button" className="btn" onClick={reload}>
             Retry
           </button>
