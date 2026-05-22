@@ -5,7 +5,10 @@ through a TestClient. The deeper query and QTD behavior is already covered by
 the service-layer tests; here the focus is that each route is wired correctly.
 """
 
+import logging
+
 from fastapi.testclient import TestClient
+from prometheus_client import REGISTRY
 
 from app import service
 from app.db import get_session
@@ -209,6 +212,49 @@ def test_unexpected_error_returns_consistent_json_500(db_session, monkeypatch):
     assert response.headers.get("X-Request-ID")
 
 
+def test_metrics_endpoint_is_exposed(client):
+    """GET /metrics serves the Prometheus exposition for the scraper."""
+    response = client.get("/metrics")
+    assert response.status_code == 200
+    assert response.headers["content-type"].startswith("text/plain")
+    # The exposition always carries HELP/TYPE comment lines.
+    assert "# HELP" in response.text
+
+
+def test_publish_increments_the_metrics_counter(client):
+    """A successful publish bumps the kpi_estimates_published_total counter.
+
+    The counter is process-global and not transactional, so it is read before
+    and after and asserted to have moved by exactly one; the absolute value
+    depends on how many other tests published first.
+    """
+    labels = {"estimate_type": "qtd"}
+    before = REGISTRY.get_sample_value("kpi_estimates_published_total", labels) or 0.0
+
+    response = client.post("/estimates", json=_publish_body())
+    assert response.status_code == 201
+
+    after = REGISTRY.get_sample_value("kpi_estimates_published_total", labels)
+    assert after == before + 1
+
+
+def test_quiet_paths_are_not_logged_at_info(client, caplog):
+    """Health and metrics probes are logged at DEBUG, not INFO.
+
+    Both are polled constantly, so logging them at INFO would bury the real
+    request log. A normal endpoint is still logged at INFO.
+    """
+    with caplog.at_level(logging.INFO, logger="app.request"):
+        client.get("/health")
+        client.get("/metrics")
+        quiet = [r for r in caplog.records if r.name == "app.request"]
+        assert quiet == []
+
+        client.get("/kpis")
+        logged = [r for r in caplog.records if r.name == "app.request"]
+        assert [r.getMessage() for r in logged] == ["request"]
+
+
 def test_error_inside_middleware_body_returns_consistent_json_500(db_session, monkeypatch):
     """An error raised in the logging middleware itself still yields a JSON 500.
 
@@ -220,8 +266,9 @@ def test_error_inside_middleware_body_returns_consistent_json_500(db_session, mo
     def _boom(*args, **kwargs):
         raise RuntimeError("simulated middleware failure")
 
-    # logger.info runs in the middleware body once call_next has succeeded.
-    monkeypatch.setattr("app.middleware.logger.info", _boom)
+    # logger.log emits the request line in the middleware body once call_next
+    # has succeeded; patching it makes that body raise.
+    monkeypatch.setattr("app.middleware.logger.log", _boom)
     app.dependency_overrides[get_session] = lambda: db_session
     try:
         with TestClient(app, raise_server_exceptions=False) as raising_client:

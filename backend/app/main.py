@@ -8,6 +8,7 @@ uvicorn and the test client need; tests swap the database session through
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from prometheus_fastapi_instrumentator import Instrumentator
 
 from app.config import settings
 from app.errors import NotFoundError
@@ -24,9 +25,10 @@ app = FastAPI(
     description="Quarterly KPI estimates for time-constrained public-market investors.",
 )
 
-# Middleware is applied outermost-last. CORS is added first and the
-# request-logging middleware last, so logging is the outer layer: it times the
-# whole request and sees the final, CORS-decorated response.
+# Middleware is applied outermost-last. CORS is added first, the Prometheus
+# metrics middleware next, and the request-logging middleware last, so logging
+# stays the outer layer: it times the whole request and sees the final,
+# CORS-decorated response.
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[settings.frontend_origin],
@@ -36,6 +38,13 @@ app.add_middleware(
     allow_headers=["*"],
     expose_headers=["X-Request-ID"],
 )
+
+# Prometheus metrics. instrument() adds the metrics-collecting middleware;
+# expose() publishes GET /metrics for Prometheus to scrape. The scrape endpoint
+# is excluded from its own metrics and from the OpenAPI schema, since it is an
+# operational endpoint, not part of the JSON data API.
+Instrumentator(excluded_handlers=["/metrics"]).instrument(app).expose(app, include_in_schema=False)
+
 app.add_middleware(RequestLoggingMiddleware)
 
 

@@ -155,6 +155,12 @@ or a `latest_qtd` flag for current QTD, and a cache for the overview.
 - **Request timing.** The same middleware times every request and logs the
   latency. An unhandled error is logged as a 500 before being re-raised, so
   failures are never missing from the log.
+- **Prometheus metrics.** `GET /metrics` exposes request counts and a latency
+  histogram (via `prometheus-fastapi-instrumentator`), plus a custom
+  `kpi_estimates_published_total` counter, in the exposition format a Prometheus
+  scraper reads directly. Successful `/metrics` and `/health` probes are logged
+  at `DEBUG`, not `INFO`, so the steady probe traffic does not bury the request
+  log.
 - **Health check.** `GET /health` runs a trivial query and reports database
   connectivity, returning 503 on failure.
 - **Auditing.** Publishing is append-only, so the `estimates` table is itself an
@@ -170,11 +176,7 @@ transport, stdout is the JSON-RPC protocol channel, so a stdout log handler
 would corrupt it. The six MCP tools surface failures through typed `ToolError`
 messages instead.
 
-**Known limitation.** `GET /health` is logged at `INFO` on every call. Under a
-real uptime probe that is noisy; a production setup would log it at `DEBUG` or
-exclude it from the access log.
-
-**Forward plan.** A Prometheus `/metrics` endpoint with dashboards; shipping the
+**Forward plan.** Grafana dashboards over the `/metrics` endpoint; shipping the
 JSON logs to an aggregator (Loki, ELK, or similar); alerting on error-rate and
 p95-latency SLOs; a `published_by` field on the publish endpoint once
 authentication exists; and OpenTelemetry tracing across the REST, service, and
@@ -204,6 +206,7 @@ Verify it:
 ```bash
 curl http://localhost:8000/health      # -> {"status":"ok","db":"ok"}
 curl http://localhost:8000/companies   # -> 20 companies
+curl http://localhost:8000/metrics     # -> Prometheus metrics exposition
 ```
 
 **Two database URLs, by design.** Inside the Compose network the backend reaches
@@ -351,8 +354,9 @@ generated and accepted blindly.
 - **Authentication and a richer audit trail.** The publish endpoint has no auth
   (out of scope per the assignment). With auth, a `published_by` field would
   complete the audit trail.
-- **Full observability stack.** A Prometheus `/metrics` endpoint, log
-  aggregation, SLO alerting, and OpenTelemetry tracing (see Observability).
+- **Full observability stack.** Grafana dashboards over the `/metrics`
+  endpoint, log aggregation, SLO alerting, and OpenTelemetry tracing (see
+  Observability).
 - **Frontend component and end-to-end tests.** The current frontend tests cover
   the pure `lib/` logic; component and end-to-end tests would be the next layer.
 - **Server-side directory search.** The company directory loads every company

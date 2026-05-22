@@ -18,6 +18,12 @@ from app.log_config import request_id_var
 
 logger = logging.getLogger("app.request")
 
+# Health and metrics are polled constantly (a load balancer hits /health,
+# Prometheus scrapes /metrics). A successful request to either is logged at
+# DEBUG, not INFO, so the steady probe traffic does not bury the real request
+# log. A failure on either path is still logged as a 500 by _log_failure.
+_QUIET_PATHS = frozenset({"/health", "/metrics"})
+
 
 class RequestLoggingMiddleware(BaseHTTPMiddleware):
     """Time each request, log it as one JSON line, and stamp X-Request-ID."""
@@ -45,7 +51,11 @@ class RequestLoggingMiddleware(BaseHTTPMiddleware):
             try:
                 response.headers["X-Request-ID"] = request_id
                 latency_ms = round((time.perf_counter() - start) * 1000, 2)
-                logger.info(
+                # Quiet paths drop to DEBUG; logger.log takes the level as an
+                # argument so the success line stays a single call site.
+                level = logging.DEBUG if request.url.path in _QUIET_PATHS else logging.INFO
+                logger.log(
+                    level,
                     "request",
                     extra={
                         "method": request.method,
