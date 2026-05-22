@@ -397,6 +397,28 @@ def test_compare_kpi_unknown_kpi_raises_tool_error(monkeypatch):
         _call_tool("compare_kpi_across_companies", {"kpi": "Nope"})
 
 
+# --- error masking ---------------------------------------------------------
+
+
+def test_unexpected_error_is_masked_and_does_not_leak_details(monkeypatch):
+    """mask_error_details hides an unexpected exception's message from the client.
+
+    A deliberate ToolError, the NotFoundError path tested above, reaches the
+    caller verbatim. Any other exception must not: here a service function
+    raises a RuntimeError carrying a fake connection string, and the error
+    surfaced to the caller must not contain it.
+    """
+    secret = "postgresql://kpi:s3cr3t@db:5432/kpi"
+
+    def fake_list_companies(session, search=None):
+        raise RuntimeError(f"connection failed: {secret}")
+
+    monkeypatch.setattr(server.service, "list_companies", fake_list_companies)
+    with pytest.raises(ToolError) as excinfo:
+        _call_tool("search_companies", {})
+    assert secret not in str(excinfo.value)
+
+
 # --- prompts ---------------------------------------------------------------
 
 
