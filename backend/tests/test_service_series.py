@@ -112,3 +112,34 @@ def test_same_period_historical_correction_resolves_to_the_newest_row(db_session
     assert periods == ["2025Q2", "2025Q3", "2025Q4"]
     q4 = next(p for p in series.history if p.period == "2025Q4")
     assert q4.value == 135.0
+
+
+def test_series_carries_analytics_from_the_history(db_session):
+    # ACME / Total Revenue history: 2025Q2=100, 2025Q3=110, 2025Q4=120.
+    series = get_series(db_session, "ACME", "Total Revenue ($MM)")
+    assert series.analytics.latest_period == "2025Q4"
+    # QoQ compares the latest closed quarter, 2025Q4, to 2025Q3.
+    assert series.analytics.qoq == (120.0 - 110.0) / 110.0
+    # The fixture has no 2024Q4, so YoY cannot be computed.
+    assert series.analytics.yoy is None
+
+
+def test_analytics_use_the_full_history_not_the_date_filtered_view(db_session):
+    """Decision D1: a date filter narrows the chart but not the analytics.
+
+    Filtering to just 2025Q4 leaves one point on the history line, but QoQ is
+    still 2025Q4 vs 2025Q3, computed from the full unfiltered history, so the
+    trend signal stays stable as the user narrows the chart.
+    """
+    series = get_series(
+        db_session,
+        "ACME",
+        "Total Revenue ($MM)",
+        date_from=date(2025, 10, 1),
+        date_to=date(2025, 12, 31),
+    )
+    # The chart view is narrowed to the single in-range quarter.
+    assert [p.period for p in series.history] == ["2025Q4"]
+    # The analytics are unchanged: still computed from 2025Q2/Q3/Q4.
+    assert series.analytics.latest_period == "2025Q4"
+    assert series.analytics.qoq == (120.0 - 110.0) / 110.0

@@ -25,6 +25,7 @@ from app.schemas import (
     EstimatePoint,
     KpiInfo,
     QtdSnapshot,
+    SeriesAnalytics,
     SeriesDetail,
 )
 
@@ -88,6 +89,9 @@ def _series(*, current_qtd: QtdSnapshot | None) -> SeriesDetail:
         qtd_snapshots=[current_qtd] if current_qtd is not None else [],
         current_qtd=current_qtd,
         last_updated=datetime(2026, 5, 1, 12, 0, 0),
+        # The history holds a single 2025Q4 point, so there is no prior quarter
+        # to compute QoQ/YoY against; this matches what compute_analytics yields.
+        analytics=SeriesAnalytics(latest_period="2025Q4", qoq=None, yoy=None),
     )
 
 

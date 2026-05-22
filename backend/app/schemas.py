@@ -66,12 +66,33 @@ class QtdSnapshot(BaseModel):
     created_at: datetime
 
 
+class SeriesAnalytics(BaseModel):
+    """Closed-quarter trend signals for a series, computed from the full history.
+
+    `qoq` and `yoy` are fractional percent changes of the latest closed
+    quarter's value: 0.05 means a +5% move. `qoq` compares it to the
+    immediately preceding quarter, `yoy` to the same quarter one year earlier.
+    A field is None when its comparison quarter is absent from the data or has a
+    zero value, so the UI never shows a misleading number.
+
+    Only closed-quarter (historical) estimates feed these signals. A QTD
+    estimate is a partial, cumulative-to-date value, so it carries no YoY/QoQ.
+    The signals are computed from the complete history, so they do not change
+    when the chart's date filter narrows the view.
+    """
+
+    latest_period: str | None
+    qoq: float | None
+    yoy: float | None
+
+
 class SeriesDetail(BaseModel):
     """The full (company, KPI) time series: closed-quarter history plus QTD snapshots.
 
     `current_qtd` is the snapshot with the latest `as_of`, surfaced here so the
     UI and the MCP tools never recompute it. `last_updated` is the most recent
     `created_at` across the series, the audit "last updated" timestamp.
+    `analytics` carries the YoY/QoQ trend signals for the series.
     """
 
     ticker: str
@@ -82,6 +103,7 @@ class SeriesDetail(BaseModel):
     qtd_snapshots: list[QtdSnapshot]
     current_qtd: QtdSnapshot | None
     last_updated: datetime | None
+    analytics: SeriesAnalytics
 
 
 class CompanyEstimates(BaseModel):

@@ -18,6 +18,7 @@ from datetime import date, datetime
 from sqlalchemy import Row, func, select
 from sqlalchemy.orm import Session
 
+from app.analytics import compute_analytics
 from app.errors import NotFoundError
 from app.models import Company, Estimate, Kpi
 from app.schemas import (
@@ -224,10 +225,19 @@ def _assemble_series(
     Shared by get_series and get_company_estimates so the assembly logic is
     written once. `current_qtd` is the latest QTD snapshot in the (possibly
     filtered) view; the snapshots come back sorted by as_of, so it is the last.
+
+    Analytics (YoY/QoQ) are computed from the full closed-quarter history, never
+    the date-filtered view, so they stay stable as the user narrows the chart.
+    An unfiltered request already holds the full history; a filtered one fetches
+    it once more, so analytics always cost exactly one history query.
     """
     history = _fetch_history(session, company.id, kpi.id, date_from, date_to)
     qtd_snapshots = _fetch_qtd_snapshots(session, company.id, kpi.id, date_from, date_to)
     current_qtd = qtd_snapshots[-1] if qtd_snapshots else None
+    if date_from is None and date_to is None:
+        full_history = history
+    else:
+        full_history = _fetch_history(session, company.id, kpi.id, None, None)
     return SeriesDetail(
         ticker=company.ticker,
         company_name=company.name,
@@ -237,6 +247,7 @@ def _assemble_series(
         qtd_snapshots=qtd_snapshots,
         current_qtd=current_qtd,
         last_updated=_latest_created_at(history, qtd_snapshots),
+        analytics=compute_analytics(full_history),
     )
 
 
