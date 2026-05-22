@@ -9,6 +9,7 @@ import {
   formatValue,
   formatValueParts,
   parseDate,
+  trendTone,
 } from './format'
 
 describe('formatValue', () => {
@@ -76,6 +77,21 @@ describe('formatPercent', () => {
 
   it('rounds to one decimal place', () => {
     expect(formatPercent(0.23306)).toBe('+23.3%')
+  })
+})
+
+describe('trendTone', () => {
+  it('classifies a rise as positive', () => {
+    expect(trendTone(0.1)).toBe('positive')
+  })
+
+  it('classifies a fall as negative', () => {
+    expect(trendTone(-0.1)).toBe('negative')
+  })
+
+  it('treats zero and null as neutral', () => {
+    expect(trendTone(0)).toBe('neutral')
+    expect(trendTone(null)).toBe('neutral')
   })
 })
 

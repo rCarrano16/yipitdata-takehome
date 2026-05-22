@@ -58,6 +58,18 @@ export function formatPercent(fraction: number): string {
   return `${sign}${formatNumber(fraction * 100, 1)}%`
 }
 
+/**
+ * Classify a fractional change for color toning: a rise, a fall, or neutral.
+ * A null or exactly-zero value is neutral. The trend badge pill and the trend
+ * value text are both toned from this one rule.
+ */
+export function trendTone(
+  value: number | null,
+): 'positive' | 'negative' | 'neutral' {
+  if (value === null || value === 0) return 'neutral'
+  return value > 0 ? 'positive' : 'negative'
+}
+
 /** A short value for a chart axis tick, e.g. 1_200_000 -> "1.2M". */
 export function formatCompact(value: number): string {
   return new Intl.NumberFormat('en-US', {

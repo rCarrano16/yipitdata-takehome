@@ -35,6 +35,10 @@
   --positive: #4caf50;
   --negative: #ed5c6d;
   --warning: #f7bb49;
+  /* Soft tints of the semantic colors (14% over --surface): the trend-pill
+     backgrounds. */
+  --positive-soft: #e6f4e7;
+  --negative-soft: #fce8eb;
 
   /* Elevation: the only shadow in the product, for floating layers only */
   --shadow-overlay: 0 8px 24px rgba(13, 71, 83, 0.12);
@@ -416,7 +420,7 @@ input:focus-visible {
 .card-trend {
   display: flex;
   flex-wrap: wrap;
-  gap: 16px;
+  gap: 8px;
   margin-top: 8px;
 }
 
@@ -467,7 +471,9 @@ input:focus-visible {
 
 /* --- Trend metrics (QoQ / YoY signals and the per-panel range change) --- */
 
-/* The label that precedes a trend value, e.g. "QoQ", in muted text. */
+/* QoQ / YoY signal pill: a soft tint background by tone, a muted label, and
+   the percent as a bold color-toned TrendValue. A transparent border keeps
+   all tones the same box size. */
 .trend-badge {
   display: inline-flex;
   align-items: baseline;
@@ -475,11 +481,28 @@ input:focus-visible {
   font-size: 11px;
   font-weight: 500;
   color: var(--ink-muted);
+  border: 1px solid transparent;
+  border-radius: var(--radius-pill);
+  padding: 1px 8px;
 }
 
-/* The signed percent itself: bold and color-toned, green for a rise and red
-   for a fall. The + / - sign carries the direction as text, so meaning is not
-   color-only. The full semantic colors are used as text here by deliberate
+.trend-badge--positive {
+  background: var(--positive-soft);
+}
+
+.trend-badge--negative {
+  background: var(--negative-soft);
+}
+
+.trend-badge--neutral {
+  background: var(--canvas);
+  border-color: var(--rule);
+}
+
+/* The signed percent: bold and color-toned, green for a rise and red for a
+   fall. The + / - sign carries the direction as text, so meaning is not
+   color-only. Used inside the pill, and without a pill as the detail chart's
+   per-panel range change. The semantic colors are used as text by deliberate
    choice; see docs/design-system.md section 10. Size is inherited, so the
    same atom works on a small card and larger beside a chart panel title. */
 .trend-value {
@@ -524,8 +547,8 @@ input:focus-visible {
 .analytics-row {
   display: flex;
   flex-wrap: wrap;
-  align-items: baseline;
-  gap: 14px;
+  align-items: center;
+  gap: 8px;
   margin-bottom: 16px;
 }
 

@@ -118,6 +118,8 @@ outside this table.
 | `--positive` | `#4CAF50` | Chart Green | Positive status; rising trend metric (section 10) |
 | `--negative` | `#ED5C6D` | Chart Red | Errors, destructive status; falling trend metric (section 10) |
 | `--warning` | `#F7BB49` | Chart Yellow | Caution status |
+| `--positive-soft` | `#E6F4E7` | Derived, `--positive` 14% on `--surface` | Background of a rising trend pill |
+| `--negative-soft` | `#FCE8EB` | Derived, `--negative` 14% on `--surface` | Background of a falling trend pill |
 
 ### Elevation
 
@@ -276,16 +278,18 @@ background, `1px solid var(--rule)`, padding `1px 8px`.
 
 ### Trend metric
 
-A trend signal is inline text, not a pill: an optional short label in
-`--ink-muted` followed by the signed percent in Roboto Mono 700, color-toned
-`--positive` for a rise or `--negative` for a fall. The `+` / `-` sign carries
-the direction as text, so meaning never depends on color alone; the colors
-themselves are a documented contrast exception (section 10). A null signal
-(no comparable value) renders a muted `--ink-muted` "n/a".
+The signed percent change of a trend signal is always Roboto Mono 700,
+color-toned `--positive` for a rise or `--negative` for a fall. The `+` / `-`
+sign carries the direction as text, so meaning never depends on color alone;
+the colors are a documented contrast exception (section 10). A null signal
+(no comparable value) is a muted `--ink-muted` "n/a".
 
-The same treatment serves the QoQ / YoY badges (summary cards and the
-series-page trend row) and the per-panel range change beside each detail-chart
-panel title, so every trend figure in the app reads the same.
+It appears in two forms. A **QoQ / YoY badge** is a pill: a short `--ink-muted`
+label and the percent, on a soft tint background (`--positive-soft` /
+`--negative-soft`, or neutral `--canvas` with a `--rule` border for a null
+signal). Badges sit on the summary cards and the series-page trend row. The
+**per-panel range change** on the detail chart is the same percent with no
+pill and no label, set beside the panel title.
 
 ### Filter chip
 
@@ -383,8 +387,9 @@ From YipitData's published dashboard guidance:
   too) and disabled controls, never for content such as a caption.
 - **Documented exception, the trend metric.** The QoQ / YoY badges and the
   detail chart's per-panel range change render the signed percent in the full
-  semantic colors `--positive` `#4CAF50` (~2.9:1 on white) and `--negative`
-  `#ED5C6D` (~3.3:1), both below the AA text threshold. This is a deliberate
+  semantic colors `--positive` `#4CAF50` and `--negative` `#ED5C6D`. As text
+  these fall below the AA threshold: about 2.9:1 and 3.3:1 on white, and about
+  2.6:1 on the matching soft-tint pill background. This is a deliberate
   trade-off for a punchy, on-brand trend read. It is sound because the figure
   never relies on color alone: it is bold Roboto Mono 700, always carries an
   explicit `+` / `-` sign, and a QoQ / YoY badge also carries a text label, so

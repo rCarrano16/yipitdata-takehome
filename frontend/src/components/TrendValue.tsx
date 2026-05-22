@@ -1,4 +1,4 @@
-import { formatPercent } from '../lib/format'
+import { formatPercent, trendTone } from '../lib/format'
 
 interface TrendValueProps {
   /** The fractional change, or null when it cannot be computed. */
@@ -16,12 +16,8 @@ interface TrendValueProps {
  * card label and larger beside a chart panel title.
  */
 export default function TrendValue({ value }: TrendValueProps) {
-  let tone = 'neutral'
-  if (value !== null && value > 0) tone = 'positive'
-  else if (value !== null && value < 0) tone = 'negative'
-
   return (
-    <span className={`trend-value trend-value--${tone}`}>
+    <span className={`trend-value trend-value--${trendTone(value)}`}>
       {value === null ? 'n/a' : formatPercent(value)}
     </span>
   )
